@@ -1,9 +1,9 @@
-package com.flexit.service;
+package com.smartcampus.service;
 
-import com.flexit.exception.ResourceNotFoundException;
-import com.flexit.model.Resource;
-import com.flexit.model.ResourceType;
-import com.flexit.repository.ResourceRepository;
+import com.smartcampus.exception.ResourceNotFoundException;
+import com.smartcampus.model.Resource;
+import com.smartcampus.model.ResourceType;
+import com.smartcampus.repository.ResourceRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -61,4 +61,3 @@ public class ResourceService {
                 .collect(Collectors.toList());
     }
 }
-

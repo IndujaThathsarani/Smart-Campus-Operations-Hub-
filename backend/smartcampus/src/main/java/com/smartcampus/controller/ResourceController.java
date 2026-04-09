@@ -1,7 +1,7 @@
-package com.flexit.controller;
+package com.smartcampus.controller;
 
-import com.flexit.model.Resource;
-import com.flexit.service.ResourceService;
+import com.smartcampus.model.Resource;
+import com.smartcampus.service.ResourceService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,4 +57,3 @@ public class ResourceController {
         return ResponseEntity.ok(resourceService.searchResources(type, capacity, location));
     }
 }
-

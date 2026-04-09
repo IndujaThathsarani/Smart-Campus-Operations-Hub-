@@ -1,4 +1,4 @@
-package com.flexit.model;
+package com.smartcampus.model;
 
 public enum ResourceType {
     LECTURE_HALL,
@@ -7,4 +7,3 @@ public enum ResourceType {
     PROJECTOR,
     CAMERA
 }
-

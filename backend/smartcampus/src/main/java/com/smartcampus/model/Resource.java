@@ -1,4 +1,4 @@
-package com.flexit.model;
+package com.smartcampus.model;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -124,4 +124,3 @@ public class Resource {
         this.description = description;
     }
 }
-

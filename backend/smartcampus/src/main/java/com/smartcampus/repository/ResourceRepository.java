@@ -1,7 +1,7 @@
-package com.flexit.repository;
+package com.smartcampus.repository;
 
-import com.flexit.model.Resource;
-import com.flexit.model.ResourceType;
+import com.smartcampus.model.Resource;
+import com.smartcampus.model.ResourceType;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,4 +16,3 @@ public interface ResourceRepository extends MongoRepository<Resource, String> {
 
     List<Resource> findByCapacityGreaterThanEqual(Integer capacity);
 }
-
