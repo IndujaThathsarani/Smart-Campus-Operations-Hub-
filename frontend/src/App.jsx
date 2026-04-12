@@ -3,7 +3,8 @@ import MainLayout from './layouts/MainLayout'
 import ProtectedRoute from './routes/ProtectedRoute'
 import ResourcesPage from './pages/resources/ResourcesPage'
 import BookingsPage from './pages/bookings/BookingsPage'
-import TicketsPage from './pages/tickets/TicketsPage'
+import TicketCreatePage from './pages/tickets/TicketCreatePage'
+import TicketsListPage from './pages/tickets/TicketsListPage'
 import NotificationsPage from './pages/notifications/NotificationsPage'
 
 export default function App() {
@@ -15,7 +16,8 @@ export default function App() {
             <Route path="/" element={<Navigate to="/resources" replace />} />
             <Route path="resources" element={<ResourcesPage />} />
             <Route path="bookings" element={<BookingsPage />} />
-            <Route path="tickets" element={<TicketsPage />} />
+            <Route path="tickets" element={<TicketsListPage />} />
+            <Route path="tickets/new" element={<TicketCreatePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
           </Route>
         </Route>
