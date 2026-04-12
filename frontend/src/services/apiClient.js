@@ -24,6 +24,22 @@ export async function apiGet(path) {
   return body
 }
 
+export async function apiPostFormData(path, formData) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    body: formData,
+    headers: { Accept: 'application/json' },
+  })
+  const parsed = await parseJsonSafe(response)
+  if (!response.ok) {
+    const err = new Error(response.statusText || 'Request failed')
+    err.status = response.status
+    err.body = parsed
+    throw err
+  }
+  return parsed
+}
+
 export async function apiSend(path, { method = 'GET', headers = {}, body } = {}) {
   const init = {
     method,
