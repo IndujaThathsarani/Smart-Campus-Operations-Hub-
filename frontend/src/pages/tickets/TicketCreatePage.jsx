@@ -1,14 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  MOCK_CATALOGUE_RESOURCES,
-  TICKET_CATEGORIES,
-  TICKET_PRIORITIES,
-} from '../../constants/ticketOptions'
+import { Link, useNavigate } from 'react-router-dom'
+import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
+import { useResources } from '../../hooks/useResources'
+import { apiPostFormData } from '../../services/apiClient'
+import { upsertStoredTicket } from '../../utils/ticketStorage'
 import './TicketsPage.css'
 
 const MAX_ATTACHMENTS = 3
 
-export default function TicketsPage() {
+function formatSubmitError(err) {
+  const msg = err?.body?.message
+  if (typeof msg === 'string') return msg
+  if (msg && typeof msg === 'object') {
+    return Object.values(msg).join(' ')
+  }
+  return err?.message || 'Something went wrong.'
+}
+
+export default function TicketCreatePage() {
+  const navigate = useNavigate()
+  const { resources, loading: resourcesLoading, loadError: resourcesLoadError } = useResources()
+
   const [resourceId, setResourceId] = useState('')
   const [location, setLocation] = useState('')
   const [category, setCategory] = useState('GENERAL')
@@ -17,10 +29,16 @@ export default function TicketsPage() {
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
 
+  const [submitPhase, setSubmitPhase] = useState('idle')
+  const [submitError, setSubmitError] = useState(null)
+
   /** @type {[{ file: File, url: string }]} */
   const [attachments, setAttachments] = useState([])
   const attachmentsRef = useRef(attachments)
-  attachmentsRef.current = attachments
+
+  useEffect(() => {
+    attachmentsRef.current = attachments
+  }, [attachments])
 
   useEffect(() => {
     return () => {
@@ -56,7 +74,7 @@ export default function TicketsPage() {
     e.target.value = ''
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const hasResource = Boolean(resourceId)
     const hasLocation = location.trim().length > 0
@@ -66,6 +84,47 @@ export default function TicketsPage() {
     if (!(hasResource || hasLocation) || !hasContact || description.trim().length < 10) {
       return
     }
+
+    setSubmitPhase('loading')
+    setSubmitError(null)
+
+    const formData = new FormData()
+    if (resourceId) {
+      formData.append('resourceId', resourceId)
+    }
+    formData.append('location', location.trim())
+    formData.append('category', category)
+    formData.append('priority', priority)
+    formData.append('description', description.trim())
+    const email = contactEmail.trim()
+    const phone = contactPhone.trim()
+    if (email) formData.append('contactEmail', email)
+    if (phone) formData.append('contactPhone', phone)
+
+    attachments.forEach((a) => {
+      formData.append('files', a.file)
+    })
+
+    try {
+      const data = await apiPostFormData('/api/tickets', formData)
+      upsertStoredTicket(data)
+      setSubmitPhase('idle')
+
+      attachments.forEach((a) => URL.revokeObjectURL(a.url))
+      setAttachments([])
+      setResourceId('')
+      setLocation('')
+      setCategory('GENERAL')
+      setDescription('')
+      setPriority('MEDIUM')
+      setContactEmail('')
+      setContactPhone('')
+
+      navigate('/tickets', { replace: false })
+    } catch (err) {
+      setSubmitPhase('error')
+      setSubmitError(formatSubmitError(err))
+    }
   }
 
   const canSubmit =
@@ -73,12 +132,32 @@ export default function TicketsPage() {
     (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
     description.trim().length >= 10
 
+  const submitting = submitPhase === 'loading'
+
   return (
     <section className="tickets-page">
-      <h1 className="page-title">Maintenance &amp; incident ticketing</h1>
+      <div className="ticket-create-nav">
+        <Link to="/tickets" className="ticket-back-link">
+          ← Back to tickets
+        </Link>
+      </div>
+
+      <h1 className="page-title">New incident ticket</h1>
+
+      {resourcesLoadError && (
+        <p className="form-banner form-banner--warn" role="status">
+          {resourcesLoadError}
+        </p>
+      )}
+
+      {submitPhase === 'error' && submitError && (
+        <p className="form-banner form-banner--err" role="alert">
+          {submitError}
+        </p>
+      )}
 
       <form className="ticket-form" onSubmit={handleSubmit} noValidate>
-        <h2>New incident ticket</h2>
+        <h2 className="ticket-form-heading">Report details</h2>
         <div className="form-stack">
           <div className="form-field">
             <label htmlFor="resource">Resource (from catalogue)</label>
@@ -86,11 +165,12 @@ export default function TicketsPage() {
               id="resource"
               value={resourceId}
               onChange={(e) => setResourceId(e.target.value)}
+              disabled={submitting || resourcesLoading}
             >
               <option value="">— None —</option>
-              {MOCK_CATALOGUE_RESOURCES.map((r) => (
+              {resources.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.label}
+                  {r.name} — {r.location}
                 </option>
               ))}
             </select>
@@ -106,6 +186,7 @@ export default function TicketsPage() {
               placeholder="e.g. Block C, Level 2, corridor by stairs"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+              disabled={submitting}
             />
             <p className="hint">Required if no resource is selected.</p>
           </div>
@@ -116,6 +197,7 @@ export default function TicketsPage() {
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={submitting}
             >
               {TICKET_CATEGORIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -131,6 +213,7 @@ export default function TicketsPage() {
               id="priority"
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
+              disabled={submitting}
             >
               {TICKET_PRIORITIES.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -150,6 +233,7 @@ export default function TicketsPage() {
               placeholder="Describe the issue (minimum 10 characters)."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
             />
           </div>
 
@@ -162,6 +246,7 @@ export default function TicketsPage() {
               placeholder="you@university.edu"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
+              disabled={submitting}
             />
           </div>
 
@@ -174,6 +259,7 @@ export default function TicketsPage() {
               placeholder="+94 …"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
+              disabled={submitting}
             />
             <p className="hint">Provide at least email or phone.</p>
           </div>
@@ -190,7 +276,7 @@ export default function TicketsPage() {
                 type="file"
                 accept="image/*"
                 multiple
-                disabled={attachments.length >= MAX_ATTACHMENTS}
+                disabled={submitting || attachments.length >= MAX_ATTACHMENTS}
                 onChange={handleFileChange}
               />
             </div>
@@ -207,6 +293,7 @@ export default function TicketsPage() {
                       className="preview-remove"
                       aria-label={`Remove image ${index + 1}`}
                       onClick={() => removeAttachment(index)}
+                      disabled={submitting}
                     >
                       ×
                     </button>
@@ -217,8 +304,8 @@ export default function TicketsPage() {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="btn-submit" disabled={!canSubmit}>
-              Submit ticket
+            <button type="submit" className="btn-submit" disabled={!canSubmit || submitting}>
+              {submitting ? 'Submitting…' : 'Submit ticket'}
             </button>
           </div>
         </div>
