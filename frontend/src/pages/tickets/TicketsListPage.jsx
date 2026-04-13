@@ -1,6 +1,7 @@
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
-import { loadStoredTickets } from '../../utils/ticketStorage'
+import { apiGet } from '../../services/apiClient'
 import './TicketsListPage.css'
 
 function formatCategory(c) {
@@ -28,7 +29,27 @@ function excerpt(text, max = 120) {
 }
 
 export default function TicketsListPage() {
-  const tickets = loadStoredTickets()
+  const [tickets, setTickets] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const loadTickets = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiGet('/api/tickets')
+      setTickets(Array.isArray(data) ? data : [])
+    } catch (e) {
+      setError(e?.body?.message || e?.message || 'Could not load tickets.')
+      setTickets([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadTickets()
+  }, [loadTickets])
 
   return (
     <section className="tickets-list-page">
@@ -36,18 +57,37 @@ export default function TicketsListPage() {
         <div>
           <h1 className="page-title">Incident tickets</h1>
           <p className="page-lead">
-            Track your reports: <strong>Open</strong> → <strong>In progress</strong> →{' '}
-            <strong>Resolved</strong> → <strong>Closed</strong>. An admin may set{' '}
-            <strong>Rejected</strong> with a reason instead.
+            List is loaded from the API / MongoDB (not browser storage). Track your reports:{' '}
+            <strong>Open</strong> → <strong>In progress</strong> → <strong>Resolved</strong> →{' '}
+            <strong>Closed</strong>. An admin may set <strong>Rejected</strong> with a reason instead.
           </p>
         </div>
       </header>
 
-      {tickets.length === 0 ? (
+      {loading && (
         <div className="tickets-empty">
-          <p>No tickets yet. Create one with the button below.</p>
+          <p>Loading tickets…</p>
         </div>
-      ) : (
+      )}
+
+      {!loading && error && (
+        <div className="tickets-empty" role="alert">
+          <p>{error}</p>
+          <p>
+            <button type="button" className="ticket-retry-btn" onClick={loadTickets}>
+              Retry
+            </button>
+          </p>
+        </div>
+      )}
+
+      {!loading && !error && tickets.length === 0 && (
+        <div className="tickets-empty">
+          <p>No tickets in the database yet. Create one with the button below.</p>
+        </div>
+      )}
+
+      {!loading && !error && tickets.length > 0 && (
         <ul className="tickets-cards">
           {tickets.map((t) => (
             <li key={t.id} className="ticket-card">

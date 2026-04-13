@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 // import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
-import { upsertStoredTicket } from '../../utils/ticketStorage'
 import './TicketsPage.css'
 
 const MAX_ATTACHMENTS = 3
@@ -106,8 +105,7 @@ export default function TicketCreatePage() {
     })
 
     try {
-      const data = await apiPostFormData('/api/tickets', formData)
-      upsertStoredTicket(data)
+      await apiPostFormData('/api/tickets', formData)
       setSubmitPhase('idle')
 
       attachments.forEach((a) => URL.revokeObjectURL(a.url))
