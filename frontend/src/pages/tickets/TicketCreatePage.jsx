@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
-import { useResources } from '../../hooks/useResources'
+// import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
 import { upsertStoredTicket } from '../../utils/ticketStorage'
 import './TicketsPage.css'
@@ -19,9 +19,9 @@ function formatSubmitError(err) {
 
 export default function TicketCreatePage() {
   const navigate = useNavigate()
-  const { resources, loading: resourcesLoading, loadError: resourcesLoadError } = useResources()
+  // const { resources, loading: resourcesLoading, loadError: resourcesLoadError } = useResources()
 
-  const [resourceId, setResourceId] = useState('')
+  // const [resourceId, setResourceId] = useState('')
   const [location, setLocation] = useState('')
   const [category, setCategory] = useState('GENERAL')
   const [description, setDescription] = useState('')
@@ -76,12 +76,12 @@ export default function TicketCreatePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const hasResource = Boolean(resourceId)
+    // const hasResource = Boolean(resourceId)
     const hasLocation = location.trim().length > 0
     const hasContact =
       contactEmail.trim().length > 0 || contactPhone.trim().length > 0
 
-    if (!(hasResource || hasLocation) || !hasContact || description.trim().length < 10) {
+    if (!hasLocation || !hasContact || description.trim().length < 10) {
       return
     }
 
@@ -89,9 +89,9 @@ export default function TicketCreatePage() {
     setSubmitError(null)
 
     const formData = new FormData()
-    if (resourceId) {
-      formData.append('resourceId', resourceId)
-    }
+    // if (resourceId) {
+    //   formData.append('resourceId', resourceId)
+    // }
     formData.append('location', location.trim())
     formData.append('category', category)
     formData.append('priority', priority)
@@ -112,7 +112,7 @@ export default function TicketCreatePage() {
 
       attachments.forEach((a) => URL.revokeObjectURL(a.url))
       setAttachments([])
-      setResourceId('')
+      // setResourceId('')
       setLocation('')
       setCategory('GENERAL')
       setDescription('')
@@ -127,8 +127,9 @@ export default function TicketCreatePage() {
     }
   }
 
+  // When resource field is restored: (Boolean(resourceId) || location.trim().length > 0) && …
   const canSubmit =
-    (Boolean(resourceId) || location.trim().length > 0) &&
+    location.trim().length > 0 &&
     (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
     description.trim().length >= 10
 
@@ -144,11 +145,11 @@ export default function TicketCreatePage() {
 
       <h1 className="page-title">New incident ticket</h1>
 
-      {resourcesLoadError && (
+      {/* {resourcesLoadError && (
         <p className="form-banner form-banner--warn" role="status">
           {resourcesLoadError}
         </p>
-      )}
+      )} */}
 
       {submitPhase === 'error' && submitError && (
         <p className="form-banner form-banner--err" role="alert">
@@ -159,6 +160,7 @@ export default function TicketCreatePage() {
       <form className="ticket-form" onSubmit={handleSubmit} noValidate>
         <h2 className="ticket-form-heading">Report details</h2>
         <div className="form-stack">
+          {/* Resource (catalogue) — restore when catalogue API is ready:
           <div className="form-field">
             <label htmlFor="resource">Resource (from catalogue)</label>
             <select
@@ -176,6 +178,7 @@ export default function TicketCreatePage() {
             </select>
             <p className="hint">Optional if you describe the location below.</p>
           </div>
+          */}
 
           <div className="form-field">
             <label htmlFor="location">Location</label>
@@ -188,7 +191,7 @@ export default function TicketCreatePage() {
               onChange={(e) => setLocation(e.target.value)}
               disabled={submitting}
             />
-            <p className="hint">Required if no resource is selected.</p>
+            <p className="hint">Where the incident happened (building, room, area).</p>
           </div>
 
           <div className="form-field">
