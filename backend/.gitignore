@@ -1,5 +1,8 @@
 HELP.md
+# Atlas launcher with password (copy from run-atlas.ps1.example)
+run-atlas.ps1
 target/
+uploads/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
