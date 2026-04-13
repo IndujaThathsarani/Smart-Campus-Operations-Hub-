@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
 
 async function parseJsonSafe(response) {
   const text = await response.text()
@@ -11,9 +12,19 @@ async function parseJsonSafe(response) {
 }
 
 export async function apiGet(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Accept: 'application/json' },
-  })
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Accept: 'application/json' },
+    })
+  } catch (e) {
+    const err = new Error(
+      `Cannot reach the API at ${API_BASE_URL}. Is the backend running?`,
+    )
+    err.body = { message: err.message }
+    err.cause = e
+    throw err
+  }
   const body = await parseJsonSafe(response)
   if (!response.ok) {
     const err = new Error(response.statusText || 'Request failed')
@@ -25,11 +36,21 @@ export async function apiGet(path) {
 }
 
 export async function apiPostFormData(path, formData) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    body: formData,
-    headers: { Accept: 'application/json' },
-  })
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      body: formData,
+      headers: { Accept: 'application/json' },
+    })
+  } catch (e) {
+    const err = new Error(
+      `Cannot reach the API at ${API_BASE_URL}. Start the Spring Boot backend (and MongoDB), or set VITE_API_BASE_URL if it runs elsewhere.`,
+    )
+    err.body = { message: err.message }
+    err.cause = e
+    throw err
+  }
   const parsed = await parseJsonSafe(response)
   if (!response.ok) {
     const err = new Error(response.statusText || 'Request failed')
