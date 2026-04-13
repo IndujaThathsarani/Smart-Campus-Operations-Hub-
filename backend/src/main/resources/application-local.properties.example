@@ -1,0 +1,3 @@
+# Not used — use SPRING_MONGODB_URI (Spring Boot 4) or SPRING_DATA_MONGODB_URI (see run-atlas.ps1.example and README).
+# Example:
+# $env:SPRING_DATA_MONGODB_URI = "mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/SmartCampus?retryWrites=true&w=majority&appName=Cluster0"

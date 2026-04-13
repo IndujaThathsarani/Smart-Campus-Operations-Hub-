@@ -1,0 +1,6 @@
+# Copy to run-atlas.ps1, set your password, then: .\run-atlas.ps1
+# Spring Boot 4 uses SPRING_MONGODB_URI (SPRING_DATA_MONGODB_URI still works via application.properties fallback).
+
+$env:SPRING_MONGODB_URI = "mongodb+srv://USER:PASSWORD@cluster0.qckcptz.mongodb.net/SmartCampus?retryWrites=true&w=majority&appName=Cluster0"
+Set-Location $PSScriptRoot
+.\mvnw.cmd spring-boot:run
