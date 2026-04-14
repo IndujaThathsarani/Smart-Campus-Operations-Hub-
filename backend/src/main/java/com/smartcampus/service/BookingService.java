@@ -118,4 +118,22 @@ public class BookingService {
     public List<Booking> getBookingsByResource(String resourceId) {
         return bookingRepository.findByResourceIdOrderByStartTimeAsc(resourceId);
     }
+
+    // Validate future dates only
+public void validateFutureDate(LocalDateTime startTime) {
+    if (startTime.isBefore(LocalDateTime.now())) {
+        throw new IllegalArgumentException("Cannot book in the past");
+    }
+}
+
+// Validate booking duration (max 4 hours)
+public void validateDuration(LocalDateTime startTime, LocalDateTime endTime) {
+    long hours = java.time.Duration.between(startTime, endTime).toHours();
+    if (hours > 4) {
+        throw new IllegalArgumentException("Booking cannot exceed 4 hours");
+    }
+    if (hours < 1) {
+        throw new IllegalArgumentException("Booking must be at least 1 hour");
+    }
+}
 }
