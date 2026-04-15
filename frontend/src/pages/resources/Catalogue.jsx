@@ -3,6 +3,27 @@ import { useNavigate } from 'react-router-dom'
 import { apiSend } from '../../services/apiClient'
 import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
+function getStatusMeta(status) {
+  if (status === 'ACTIVE') {
+    return {
+      label: 'Active',
+      color: '#16a34a',
+    }
+  }
+
+  if (status === 'OUT_OF_SERVICE') {
+    return {
+      label: 'Out of service',
+      color: '#dc2626',
+    }
+  }
+
+  return {
+    label: status || 'Unknown',
+    color: '#6b7280',
+  }
+}
+
 export default function Catalogue() {
   const navigate = useNavigate()
   const [filters, setFilters] = useState({
@@ -139,7 +160,32 @@ export default function Catalogue() {
                 <td style={{ padding: '0.75rem' }}>
                   {resource.availabilityStart} - {resource.availabilityEnd}
                 </td>
-                <td style={{ padding: '0.75rem' }}>{resource.status}</td>
+                <td style={{ padding: '0.75rem' }}>
+                  {(() => {
+                    const statusMeta = getStatusMeta(resource.status)
+                    return (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span>{statusMeta.label}</span>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            width: '0.6rem',
+                            height: '0.6rem',
+                            borderRadius: '9999px',
+                            background: statusMeta.color,
+                          }}
+                        />
+                      </span>
+                    )
+                  })()}
+                </td>
                 <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                   <button
                     onClick={() => navigate('/bookings')}
