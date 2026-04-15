@@ -12,6 +12,8 @@ public class Resource {
     private ResourceType type;
     private Integer capacity;
     private String location;
+    private String availabilityStartDate;
+    private String availabilityEndDate;
     private String availabilityStart;
     private String availabilityEnd;
     private String status;
@@ -61,8 +63,24 @@ public class Resource {
         return availabilityStart;
     }
 
+    public String getAvailabilityStartDate() {
+        return availabilityStartDate;
+    }
+
+    public String getAvailabilityEndDate() {
+        return availabilityEndDate;
+    }
+
     public void setAvailabilityStart(String availabilityStart) {
         this.availabilityStart = availabilityStart;
+    }
+
+    public void setAvailabilityStartDate(String availabilityStartDate) {
+        this.availabilityStartDate = availabilityStartDate;
+    }
+
+    public void setAvailabilityEndDate(String availabilityEndDate) {
+        this.availabilityEndDate = availabilityEndDate;
     }
 
     public String getAvailabilityEnd() {
