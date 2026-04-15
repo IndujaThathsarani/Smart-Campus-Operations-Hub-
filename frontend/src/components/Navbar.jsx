@@ -13,6 +13,9 @@ export default function Navbar() {
           <NavLink to="/resources" className={linkClass}>
             Resources
           </NavLink>
+          <NavLink to="/admin/catalogue" className={linkClass}>
+            Admin Catalogue
+          </NavLink>
           <NavLink to="/bookings" className={linkClass}>
             Bookings
           </NavLink>
