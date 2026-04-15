@@ -2,6 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiGet, apiSend } from '../../services/apiClient'
 import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
+function getTodayIsoDate() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function addDaysIsoDate(isoDate, days) {
+  const date = new Date(isoDate)
+  if (Number.isNaN(date.getTime())) return isoDate
+  date.setDate(date.getDate() + days)
+  return date.toISOString().split('T')[0]
+}
+
 function getStatusMeta(status) {
   if (status === 'ACTIVE') {
     return {
@@ -39,6 +50,8 @@ function validateForm(data) {
   const location = (data.location || '').trim()
   const description = (data.description || '').trim()
   const capacity = Number(data.capacity)
+  const startDate = data.availabilityStartDate
+  const endDate = data.availabilityEndDate
   const startMinutes = toMinutes(data.availabilityStart)
   const endMinutes = toMinutes(data.availabilityEnd)
 
@@ -72,6 +85,18 @@ function validateForm(data) {
     errors.status = 'Select a valid status.'
   }
 
+  if (!startDate) {
+    errors.availabilityStartDate = 'Choose a start date.'
+  }
+
+  if (!endDate) {
+    errors.availabilityEndDate = 'Choose an end date.'
+  }
+
+  if (startDate && endDate && startDate > endDate) {
+    errors.availabilityEndDate = 'End date must be on or after start date.'
+  }
+
   if (Number.isNaN(startMinutes)) {
     errors.availabilityStart = 'Choose a valid start time.'
   }
@@ -96,6 +121,8 @@ const EMPTY_FORM = {
   type: 'CLASSROOM',
   capacity: '',
   location: '',
+  availabilityStartDate: getTodayIsoDate(),
+  availabilityEndDate: addDaysIsoDate(getTodayIsoDate(), 30),
   availabilityStart: '08:00',
   availabilityEnd: '17:00',
   status: 'ACTIVE',
@@ -180,6 +207,8 @@ export default function AdminCatalogue() {
       type: formData.type,
       capacity: Number(formData.capacity),
       location: formData.location.trim(),
+      availabilityStartDate: formData.availabilityStartDate,
+      availabilityEndDate: formData.availabilityEndDate,
       availabilityStart: formData.availabilityStart,
       availabilityEnd: formData.availabilityEnd,
       status: formData.status,
@@ -226,6 +255,8 @@ export default function AdminCatalogue() {
       type: resource.type || 'CLASSROOM',
       capacity: String(resource.capacity ?? ''),
       location: resource.location || '',
+      availabilityStartDate: resource.availabilityStartDate || getTodayIsoDate(),
+      availabilityEndDate: resource.availabilityEndDate || addDaysIsoDate(getTodayIsoDate(), 30),
       availabilityStart: resource.availabilityStart || '08:00',
       availabilityEnd: resource.availabilityEnd || '17:00',
       status: resource.status || 'ACTIVE',
@@ -463,6 +494,42 @@ export default function AdminCatalogue() {
               </div>
 
               <div className="grid gap-2">
+                <label htmlFor="resource-start-date" className="text-sm font-semibold text-slate-700">
+                  Availability Start Date
+                </label>
+                <input
+                  id="resource-start-date"
+                  type="date"
+                  value={formData.availabilityStartDate}
+                  onChange={(e) => updateFormField('availabilityStartDate', e.target.value)}
+                  disabled={loading}
+                  aria-invalid={Boolean(formErrors.availabilityStartDate)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/15 disabled:cursor-not-allowed disabled:bg-slate-50"
+                />
+                {formErrors.availabilityStartDate ? (
+                  <p className="text-sm text-rose-600">{formErrors.availabilityStartDate}</p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="resource-end-date" className="text-sm font-semibold text-slate-700">
+                  Availability End Date
+                </label>
+                <input
+                  id="resource-end-date"
+                  type="date"
+                  value={formData.availabilityEndDate}
+                  onChange={(e) => updateFormField('availabilityEndDate', e.target.value)}
+                  disabled={loading}
+                  aria-invalid={Boolean(formErrors.availabilityEndDate)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/15 disabled:cursor-not-allowed disabled:bg-slate-50"
+                />
+                {formErrors.availabilityEndDate ? (
+                  <p className="text-sm text-rose-600">{formErrors.availabilityEndDate}</p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2">
                 <label htmlFor="resource-start" className="text-sm font-semibold text-slate-700">
                   Availability Start
                 </label>
@@ -571,6 +638,7 @@ export default function AdminCatalogue() {
                   <th className="px-5 py-4 font-semibold">Name</th>
                   <th className="px-5 py-4 font-semibold">Type</th>
                   <th className="px-5 py-4 font-semibold">Location</th>
+                  <th className="px-5 py-4 font-semibold">Date Range</th>
                   <th className="px-5 py-4 font-semibold">Capacity</th>
                   <th className="px-5 py-4 font-semibold">Status</th>
                   <th className="px-5 py-4 text-right font-semibold">Actions</th>
@@ -579,13 +647,13 @@ export default function AdminCatalogue() {
               <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="px-5 py-8 text-center text-sm text-slate-500">
+                    <td colSpan="7" className="px-5 py-8 text-center text-sm text-slate-500">
                       Loading resources...
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-5 py-8 text-center text-sm text-slate-500">
+                    <td colSpan="7" className="px-5 py-8 text-center text-sm text-slate-500">
                       No resources found for selected filters.
                     </td>
                   </tr>
@@ -598,6 +666,11 @@ export default function AdminCatalogue() {
                         <td className="px-5 py-4 font-medium text-slate-950">{resource.name}</td>
                         <td className="px-5 py-4">{resource.type?.replace('_', ' ')}</td>
                         <td className="px-5 py-4">{resource.location}</td>
+                        <td className="px-5 py-4 text-sm text-slate-600">
+                          {resource.availabilityStartDate && resource.availabilityEndDate
+                            ? `${resource.availabilityStartDate} to ${resource.availabilityEndDate}`
+                            : 'Not set'}
+                        </td>
                         <td className="px-5 py-4">{resource.capacity}</td>
                         <td className="px-5 py-4">
                           <span

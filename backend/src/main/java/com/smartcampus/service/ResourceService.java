@@ -38,6 +38,8 @@ public class ResourceService {
         existing.setType(updatedResource.getType());
         existing.setCapacity(updatedResource.getCapacity());
         existing.setLocation(updatedResource.getLocation());
+        existing.setAvailabilityStartDate(updatedResource.getAvailabilityStartDate());
+        existing.setAvailabilityEndDate(updatedResource.getAvailabilityEndDate());
         existing.setAvailabilityStart(updatedResource.getAvailabilityStart());
         existing.setAvailabilityEnd(updatedResource.getAvailabilityEnd());
         existing.setStatus(updatedResource.getStatus());
