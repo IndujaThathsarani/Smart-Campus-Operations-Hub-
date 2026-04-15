@@ -1,10 +1,55 @@
-export default function BookingsPage() {
-  return (
-    <section>
-      <h1 className="page-title">Bookings</h1>
-      <p className="page-lead">
-        Request and manage resource bookings (pending, approved, rejected, cancelled).
-      </p>
-    </section>
-  )
-}
+import React, { useState } from 'react';
+import BookingsList from './BookingsList';
+import BookingForm from './BookingForm';
+import MyBookings from './MyBookings';
+
+const BookingsPage = () => {
+    const [activeTab, setActiveTab] = useState('all');
+
+    return (
+        <div className="container mx-auto px-4 py-6">
+            {/* Tab Navigation */}
+            <div className="flex border-b mb-6">
+                <button
+                    onClick={() => setActiveTab('all')}
+                    className={`px-6 py-3 font-medium transition-colors ${
+                        activeTab === 'all'
+                            ? 'border-b-2 border-blue-500 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    📋 All Bookings
+                </button>
+                <button
+                    onClick={() => setActiveTab('new')}
+                    className={`px-6 py-3 font-medium transition-colors ${
+                        activeTab === 'new'
+                            ? 'border-b-2 border-blue-500 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    ✨ New Booking
+                </button>
+                <button
+                    onClick={() => setActiveTab('my')}
+                    className={`px-6 py-3 font-medium transition-colors ${
+                        activeTab === 'my'
+                            ? 'border-b-2 border-blue-500 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    📖 My Bookings
+                </button>
+            </div>
+
+            {/* Render Active Tab */}
+            <div>
+                {activeTab === 'all' && <BookingsList />}
+                {activeTab === 'new' && <BookingForm />}
+                {activeTab === 'my' && <MyBookings />}
+            </div>
+        </div>
+    );
+};
+
+export default BookingsPage;
