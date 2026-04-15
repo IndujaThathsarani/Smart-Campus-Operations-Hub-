@@ -15,9 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class BookingController {
     
     @Autowired
@@ -29,6 +30,17 @@ public class BookingController {
     
     private String getCurrentUserName() {
         return "Temp User";
+    }
+
+    @GetMapping("/hello")
+    public String hello() {
+        return "hello";
+    }
+    
+    // Handle OPTIONS preflight requests
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<?> handleOptions() {
+        return ResponseEntity.ok().build();
     }
     
     // GET all bookings
@@ -98,11 +110,11 @@ public class BookingController {
             response.put("status", booking.getStatus());
             
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "NOT_FOUND");
+            error.put("error", "ERROR");
             error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
     
@@ -121,11 +133,11 @@ public class BookingController {
             response.put("status", booking.getStatus());
             
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "NOT_FOUND");
+            error.put("error", "ERROR");
             error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
     
@@ -141,11 +153,11 @@ public class BookingController {
             response.put("status", booking.getStatus());
             
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "NOT_FOUND");
+            error.put("error", "ERROR");
             error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
     

@@ -1,52 +1,64 @@
+import { apiGet, apiSend } from './apiClient';
 
-const API_URL = 'http://localhost:8081/api/bookings';
-
-// Get all bookings
+// Get all bookings (Admin)
 export const getAllBookings = async () => {
-    const response = await fetch(API_URL);
-    return response.json();
+    return await apiGet('/bookings');
+};
+
+// Get my bookings (User)
+export const getMyBookings = async () => {
+    return await apiGet('/bookings/me');
+};
+
+// Get booking by ID
+export const getBookingById = async (id) => {
+    return await apiGet(`/bookings/${id}`);
 };
 
 // Create booking
 export const createBooking = async (bookingData) => {
-    const response = await fetch(API_URL, {
+    return await apiSend('/bookings', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bookingData),
+        body: bookingData
     });
-    return response.json();
 };
 
-// Approve booking
+// Approve booking (Admin)
 export const approveBooking = async (id, reason) => {
-    const response = await fetch(`${API_URL}/${id}/approve`, {
+    return await apiSend(`/bookings/${id}/approve`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reason }),
+        body: { reason }
     });
-    return response.json();
 };
 
-// Reject booking
+// Reject booking (Admin)
 export const rejectBooking = async (id, reason) => {
-    const response = await fetch(`${API_URL}/${id}/reject`, {
+    return await apiSend(`/bookings/${id}/reject`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reason }),
+        body: { reason }
     });
-    return response.json();
 };
 
 // Cancel booking
 export const cancelBooking = async (id) => {
-    const response = await fetch(`${API_URL}/${id}/cancel`, {
-        method: 'PUT',
+    return await apiSend(`/bookings/${id}/cancel`, {
+        method: 'PUT'
     });
-    return response.json();
+};
+
+// Get booking statistics (Admin)
+export const getBookingStatistics = async () => {
+    return await apiGet('/bookings/statistics');
+};
+
+// Filter bookings
+export const filterBookings = async (params) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await apiGet(`/bookings/filter?${queryString}`);
+};
+
+// Check conflict
+export const checkConflict = async (resourceId, startTime, endTime) => {
+    const queryString = new URLSearchParams({ resourceId, startTime, endTime }).toString();
+    return await apiGet(`/bookings/check-conflict?${queryString}`);
 };

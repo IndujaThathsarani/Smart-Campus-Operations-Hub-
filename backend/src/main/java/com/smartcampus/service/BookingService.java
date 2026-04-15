@@ -104,6 +104,7 @@ public class BookingService {
     }
     
     public List<Booking> getUserBookings(String userId) {
+        System.out.println("Fetching bookings for user: " + userId);
         return bookingRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
     
