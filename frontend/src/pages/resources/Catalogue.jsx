@@ -1,9 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  getCatalogueResources,
-  RESOURCE_TYPES,
-} from '../../utils/resourceCatalogueStorage'
+import { apiSend } from '../../services/apiClient'
+import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
 export default function Catalogue() {
   const navigate = useNavigate()
@@ -13,8 +11,25 @@ export default function Catalogue() {
     minCapacity: '',
     status: 'ACTIVE',
   })
+  const [resources, setResources] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const resources = useMemo(() => getCatalogueResources(), [])
+  useEffect(() => {
+    fetchResources()
+  }, [])
+
+  async function fetchResources() {
+    setLoading(true)
+    try {
+      const data = await apiSend('/api/resources')
+      setResources(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Failed to load resources:', err)
+      setResources([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredResources = useMemo(() => {
     return resources.filter((resource) => {
@@ -38,6 +53,9 @@ export default function Catalogue() {
       <p className="page-lead">
         Browse available resources and continue to bookings.
       </p>
+
+        {loading && <p>Loading resources...</p>}
+        {!loading && resources.length === 0 && <p className="page-lead">No resources available.</p>}
 
       <div
         style={{
