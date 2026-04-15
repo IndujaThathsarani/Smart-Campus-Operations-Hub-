@@ -1,10 +1,6 @@
-import { useMemo, useState } from 'react'
-import {
-  createResourceId,
-  getCatalogueResources,
-  RESOURCE_TYPES,
-  saveCatalogueResources,
-} from '../../utils/resourceCatalogueStorage'
+import { useEffect, useMemo, useState } from 'react'
+import { apiGet, apiSend } from '../../services/apiClient'
+import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
 const EMPTY_FORM = {
   name: '',
@@ -18,61 +14,113 @@ const EMPTY_FORM = {
 }
 
 export default function AdminCatalogue() {
-  const [resources, setResources] = useState(() => getCatalogueResources())
+  const [resources, setResources] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [filters, setFilters] = useState({ type: '', location: '', status: '' })
   const [formData, setFormData] = useState(EMPTY_FORM)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetchResources()
+  }, [])
+
+  async function fetchResources() {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiGet('/api/resources')
+      setResources(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setResources([])
+      setError(err.body?.message || 'Failed to load resources')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filtered = useMemo(() => {
     return resources.filter((resource) => {
       const typeMatch = !filters.type || resource.type === filters.type
       const locationMatch =
         !filters.location ||
-        resource.location.toLowerCase().includes(filters.location.toLowerCase())
+        (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
       const statusMatch = !filters.status || resource.status === filters.status
       return typeMatch && locationMatch && statusMatch
     })
   }, [resources, filters])
 
-  function persist(next) {
-    setResources(next)
-    saveCatalogueResources(next)
-  }
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
+    setLoading(true)
+    setError(null)
 
     const payload = {
-      ...formData,
+      name: formData.name,
+      type: formData.type,
       capacity: Number(formData.capacity),
-      id: editingId || createResourceId(),
+      location: formData.location,
+      availabilityStart: formData.availabilityStart,
+      availabilityEnd: formData.availabilityEnd,
+      status: formData.status,
+      description: formData.description,
     }
 
-    const next = editingId
-      ? resources.map((resource) =>
-          resource.id === editingId ? payload : resource,
-        )
-      : [...resources, payload]
+    try {
+      if (editingId) {
+        await apiSend(`/api/resources/${editingId}`, {
+          method: 'PUT',
+          body: payload,
+        })
+      } else {
+        await apiSend('/api/resources', {
+          method: 'POST',
+          body: payload,
+        })
+      }
 
-    persist(next)
-    setFormData(EMPTY_FORM)
-    setEditingId(null)
-    setShowForm(false)
+      setFormData(EMPTY_FORM)
+      setEditingId(null)
+      setShowForm(false)
+      await fetchResources()
+    } catch (err) {
+      setError(err.body?.message || 'Failed to save resource')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   function startEdit(resource) {
     setEditingId(resource.id)
     setFormData({
-      ...resource,
+      name: resource.name || '',
+      type: resource.type || 'CLASSROOM',
       capacity: String(resource.capacity ?? ''),
+      location: resource.location || '',
+      availabilityStart: resource.availabilityStart || '08:00',
+      availabilityEnd: resource.availabilityEnd || '17:00',
+      status: resource.status || 'ACTIVE',
+      description: resource.description || '',
     })
     setShowForm(true)
   }
 
-  function handleDelete(id) {
-    const next = resources.filter((resource) => resource.id !== id)
-    persist(next)
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this resource?')) return
+    setLoading(true)
+    setError(null)
+    try {
+      await apiSend(`/api/resources/${id}`, { method: 'DELETE' })
+      await fetchResources()
+    } catch (err) {
+      setError(err.body?.message || 'Failed to delete resource')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -81,6 +129,8 @@ export default function AdminCatalogue() {
       <p className="page-lead">
         Add, edit and remove resources shown to users in the Resources section.
       </p>
+
+      {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
 
       <div
         style={{
@@ -95,6 +145,7 @@ export default function AdminCatalogue() {
           <select
             value={filters.type}
             onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
+            disabled={loading}
           >
             <option value="">All Types</option>
             {RESOURCE_TYPES.map((type) => (
@@ -103,6 +154,7 @@ export default function AdminCatalogue() {
               </option>
             ))}
           </select>
+
           <input
             type="text"
             placeholder="Filter location"
@@ -110,12 +162,15 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFilters((f) => ({ ...f, location: e.target.value }))
             }
+            disabled={loading}
           />
+
           <select
             value={filters.status}
             onChange={(e) =>
               setFilters((f) => ({ ...f, status: e.target.value }))
             }
+            disabled={loading}
           >
             <option value="">All Status</option>
             <option value="ACTIVE">Active</option>
@@ -125,6 +180,7 @@ export default function AdminCatalogue() {
 
         <button
           type="button"
+          disabled={loading}
           onClick={() => {
             setEditingId(null)
             setFormData(EMPTY_FORM)
@@ -136,7 +192,8 @@ export default function AdminCatalogue() {
             border: '1px solid #d1d5db',
             background: '#111827',
             color: '#fff',
-            cursor: 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
           }}
         >
           {showForm ? 'Close Form' : 'Add New'}
@@ -162,11 +219,13 @@ export default function AdminCatalogue() {
             placeholder="Name"
             value={formData.name}
             onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+            disabled={loading}
           />
 
           <select
             value={formData.type}
             onChange={(e) => setFormData((f) => ({ ...f, type: e.target.value }))}
+            disabled={loading}
           >
             {RESOURCE_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -184,6 +243,7 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFormData((f) => ({ ...f, capacity: e.target.value }))
             }
+            disabled={loading}
           />
 
           <input
@@ -193,6 +253,7 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFormData((f) => ({ ...f, location: e.target.value }))
             }
+            disabled={loading}
           />
 
           <input
@@ -201,6 +262,7 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFormData((f) => ({ ...f, availabilityStart: e.target.value }))
             }
+            disabled={loading}
           />
 
           <input
@@ -209,6 +271,7 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFormData((f) => ({ ...f, availabilityEnd: e.target.value }))
             }
+            disabled={loading}
           />
 
           <select
@@ -216,6 +279,7 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFormData((f) => ({ ...f, status: e.target.value }))
             }
+            disabled={loading}
           >
             <option value="ACTIVE">Active</option>
             <option value="OUT_OF_SERVICE">Out of service</option>
@@ -227,14 +291,16 @@ export default function AdminCatalogue() {
             onChange={(e) =>
               setFormData((f) => ({ ...f, description: e.target.value }))
             }
+            disabled={loading}
           />
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="submit">
-              {editingId ? 'Update Resource' : 'Create Resource'}
+            <button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : editingId ? 'Update' : 'Create'}
             </button>
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 setShowForm(false)
                 setEditingId(null)
@@ -267,35 +333,49 @@ export default function AdminCatalogue() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((resource) => (
-              <tr key={resource.id} style={{ borderTop: '1px solid #e5e7eb' }}>
-                <td style={{ padding: '0.75rem' }}>{resource.name}</td>
-                <td style={{ padding: '0.75rem' }}>
-                  {resource.type.replace('_', ' ')}
-                </td>
-                <td style={{ padding: '0.75rem' }}>{resource.location}</td>
-                <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
-                <td style={{ padding: '0.75rem' }}>{resource.status}</td>
-                <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                  <button
-                    onClick={() => startEdit(resource)}
-                    style={{ marginRight: '0.5rem' }}
-                  >
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(resource.id)}>Delete</button>
+            {loading ? (
+              <tr>
+                <td colSpan="6" style={{ padding: '1rem', textAlign: 'center' }}>
+                  Loading...
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((resource) => (
+                <tr key={resource.id} style={{ borderTop: '1px solid #e5e7eb' }}>
+                  <td style={{ padding: '0.75rem' }}>{resource.name}</td>
+                  <td style={{ padding: '0.75rem' }}>
+                    {resource.type?.replace('_', ' ')}
+                  </td>
+                  <td style={{ padding: '0.75rem' }}>{resource.location}</td>
+                  <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
+                  <td style={{ padding: '0.75rem' }}>{resource.status}</td>
+                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                    <button
+                      disabled={loading}
+                      onClick={() => startEdit(resource)}
+                      style={{ marginRight: '0.5rem' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      disabled={loading}
+                      onClick={() => handleDelete(resource.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      {filtered.length === 0 ? (
+      {!loading && filtered.length === 0 && (
         <p className="page-lead" style={{ marginTop: '0.75rem' }}>
-          No resources found for the selected filters.
+          No resources found.
         </p>
-      ) : null}
+      )}
     </section>
   )
 }
