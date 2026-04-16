@@ -15,13 +15,66 @@ function getStatusMeta(status) {
 }
 
 // Resource categories for sidebar
-const RESOURCE_CATEGORIES = [
-  { id: 'LECTURE_HALL', label: 'Lecture Halls', icon: '🏛️' },
-  { id: 'LAB', label: 'Labs', icon: '🔬' },
-  { id: 'MEETING_ROOM', label: 'Meeting Rooms', icon: '💼' },
-  { id: 'EQUIPMENT', label: 'Equipment / Electronic Items', icon: '📷' },
-  { id: 'OTHER', label: 'Other Resources', icon: '📦' },
+const CATEGORY_META = {
+  LECTURE_HALL: { label: 'Lecture Hall', icon: '🏛️' },
+  CLASSROOM: { label: 'Lecture Hall', icon: '🏛️' },
+  LABORATORY: { label: 'Laboratory', icon: '🔬' },
+  LAB: { label: 'Laboratory', icon: '🔬' },
+  AUDITORIUM: { label: 'Auditorium', icon: '🎤' },
+  MEETING_ROOM: { label: 'Meeting Room', icon: '💼' },
+  SEMINAR_ROOM: { label: 'Seminar Room', icon: '🗣️' },
+  EQUIPMENT: { label: 'Equipment', icon: '📷' },
+  TRAINING_ROOM: { label: 'Training Room', icon: '🏫' },
+  WORKSHOP_AREA: { label: 'Workshop Area', icon: '🛠️' },
+  STUDIO: { label: 'Studio', icon: '🎬' },
+  LIBRARY_SPACE: { label: 'Library Space', icon: '📚' },
+  OTHER: { label: 'Other', icon: '📦' },
+}
+
+const DEFAULT_CATEGORY_IDS = [
+  'LECTURE_HALL',
+  'LABORATORY',
+  'MEETING_ROOM',
+  'AUDITORIUM',
+  'SEMINAR_ROOM',
+  'EQUIPMENT',
+  'TRAINING_ROOM',
+  'WORKSHOP_AREA',
+  'STUDIO',
+  'LIBRARY_SPACE',
+  'OTHER',
 ]
+
+function formatTypeLabel(type) {
+  return String(type || 'OTHER').replace(/_/g, ' ')
+}
+
+function getCategoryMeta(type) {
+  const base = CATEGORY_META[type] || { label: formatTypeLabel(type), icon: '📦' }
+  return {
+    id: type,
+    label: base.label,
+    icon: base.icon,
+  }
+}
+
+function normalizeTypeKey(type) {
+  if (type === 'CLASSROOM') return 'LECTURE_HALL'
+  if (type === 'LAB') return 'LABORATORY'
+  return type
+}
+
+function matchesCategory(resourceType, categoryId) {
+  if (categoryId === 'LECTURE_HALL' || categoryId === 'CLASSROOM') {
+    return resourceType === 'CLASSROOM' || resourceType === 'LECTURE_HALL'
+  }
+
+  if (categoryId === 'LABORATORY' || categoryId === 'LAB') {
+    return resourceType === 'LABORATORY' || resourceType === 'LAB'
+  }
+
+  return resourceType === categoryId
+}
 
 function toDateKey(date) {
   const year = date.getFullYear()
@@ -53,6 +106,27 @@ function getBookedDateKeys(bookings, resourceId) {
   })
 
   return bookedDateKeys
+}
+
+function getResourceRangeDateKeys(resource) {
+  if (!resource || !resource.availabilityStartDate || !resource.availabilityEndDate) {
+    return new Set()
+  }
+
+  const start = new Date(resource.availabilityStartDate)
+  const end = new Date(resource.availabilityEndDate)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return new Set()
+
+  const current = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  const dateKeys = new Set()
+
+  while (current <= last) {
+    dateKeys.add(toDateKey(current))
+    current.setDate(current.getDate() + 1)
+  }
+
+  return dateKeys
 }
 
 export default function Catalogue() {
@@ -104,7 +178,7 @@ export default function Catalogue() {
   const filteredResources = useMemo(() => {
     return resources.filter((resource) => {
       // Category filter
-      const categoryMatch = resource.type === activeCategory
+      const categoryMatch = matchesCategory(resource.type, activeCategory)
       // Location filter
       const locationMatch = !filters.location ||
         resource.location.toLowerCase().includes(filters.location.toLowerCase())
@@ -119,14 +193,42 @@ export default function Catalogue() {
     })
   }, [resources, activeCategory, filters])
 
+  const resourceCategories = useMemo(() => {
+    const presentTypes = new Set(
+      resources.map((resource) => normalizeTypeKey(resource.type)).filter(Boolean),
+    )
+    const orderedTypes = [
+      ...DEFAULT_CATEGORY_IDS,
+      ...Array.from(presentTypes).filter((type) => !DEFAULT_CATEGORY_IDS.includes(type)),
+    ]
+
+    const deduped = []
+    const seen = new Set()
+    for (const type of orderedTypes) {
+      if (seen.has(type)) continue
+      seen.add(type)
+      deduped.push(getCategoryMeta(type))
+    }
+
+    return deduped
+  }, [resources])
+
   // Count resources by category
   const categoryCounts = useMemo(() => {
     const counts = {}
-    RESOURCE_CATEGORIES.forEach(cat => {
-      counts[cat.id] = resources.filter(r => r.type === cat.id).length
+    resourceCategories.forEach((cat) => {
+      counts[cat.id] = resources.filter((resource) => matchesCategory(resource.type, cat.id)).length
     })
     return counts
-  }, [resources])
+  }, [resources, resourceCategories])
+
+  useEffect(() => {
+    if (resourceCategories.length === 0) return
+    const exists = resourceCategories.some((category) => category.id === activeCategory)
+    if (!exists) {
+      setActiveCategory(resourceCategories[0].id)
+    }
+  }, [activeCategory, resourceCategories])
 
   useEffect(() => {
     if (filteredResources.length === 0) {
@@ -140,13 +242,16 @@ export default function Catalogue() {
     }
   }, [filteredResources, selectedCalendarResourceId])
 
-  const bookedDateKeys = useMemo(() => {
-    return getBookedDateKeys(bookings, selectedCalendarResourceId)
-  }, [bookings, selectedCalendarResourceId])
-
   const selectedCalendarResource = useMemo(() => {
     return filteredResources.find((resource) => resource.id === selectedCalendarResourceId) || null
   }, [filteredResources, selectedCalendarResourceId])
+
+  const bookedDateKeys = useMemo(() => {
+    const bookingKeys = getBookedDateKeys(bookings, selectedCalendarResourceId)
+    const rangeKeys = getResourceRangeDateKeys(selectedCalendarResource)
+
+    return new Set([...bookingKeys, ...rangeKeys])
+  }, [bookings, selectedCalendarResourceId, selectedCalendarResource])
 
   const calendarCells = useMemo(() => {
     const year = calendarMonth.getFullYear()
@@ -178,6 +283,7 @@ export default function Catalogue() {
         width: '100vw',
         marginLeft: 'calc(50% - 50vw)',
         marginRight: 'calc(50% - 50vw)',
+        marginTop: '-1.5rem',
         overflowX: 'hidden',
       }}
     >
@@ -216,7 +322,7 @@ export default function Catalogue() {
             <div style={{ padding: '0.5rem 1.5rem', color: '#94a3b8', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
               RESOURCES
             </div>
-            {RESOURCE_CATEGORIES.map((category) => (
+            {resourceCategories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setActiveCategory(category.id)}
@@ -256,12 +362,6 @@ export default function Catalogue() {
             <div style={{ padding: '0.5rem 1.5rem', color: '#94a3b8', fontSize: '0.7rem', textTransform: 'uppercase' }}>
               MANAGEMENT
             </div>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: 'calc(100% - 1rem)', margin: '0.25rem 0.5rem', padding: '0.6rem 1rem', background: 'transparent', border: 'none', borderRadius: '8px', color: '#cbd5e1', cursor: 'pointer' }}>
-              <span>📦</span> Stock
-            </button>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: 'calc(100% - 1rem)', margin: '0.25rem 0.5rem', padding: '0.6rem 1rem', background: 'transparent', border: 'none', borderRadius: '8px', color: '#cbd5e1', cursor: 'pointer' }}>
-              <span>🏷️</span> Offer
-            </button>
           </div>
         </nav>
 
@@ -279,7 +379,7 @@ export default function Catalogue() {
         {/* Header with active category */}
         <div style={{ marginBottom: '1.5rem' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
-            {RESOURCE_CATEGORIES.find(c => c.id === activeCategory)?.label || 'Resources'}
+            {resourceCategories.find((category) => category.id === activeCategory)?.label || 'Resources'}
           </h1>
           <p style={{ color: '#6b7280', marginTop: '0.25rem' }}>
             {categoryCounts[activeCategory] || 0} resources available
@@ -307,7 +407,7 @@ export default function Catalogue() {
           </div>
           <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Categories</span>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{RESOURCE_CATEGORIES.length}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{resourceCategories.length}</div>
           </div>
         </div>
 
@@ -567,9 +667,9 @@ export default function Catalogue() {
                     style={{
                       minHeight: '24px',
                       borderRadius: '7px',
-                      border: `1px solid ${isBooked ? '#fecaca' : isToday ? '#93c5fd' : '#e2e8f0'}`,
-                      background: isBooked ? '#fee2e2' : '#fff',
-                      color: isBooked ? '#b91c1c' : '#0f172a',
+                      border: `1px solid ${isBooked ? '#fda4af' : isToday ? '#93c5fd' : '#e2e8f0'}`,
+                      background: isBooked ? '#ffe4e6' : '#fff',
+                      color: isBooked ? '#be123c' : '#0f172a',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',

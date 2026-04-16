@@ -13,6 +13,44 @@ function addDaysIsoDate(isoDate, days) {
   return date.toISOString().split('T')[0]
 }
 
+function getTypeLabel(type) {
+  if (type === 'LECTURE_HALL' || type === 'CLASSROOM') return 'Lecture Hall'
+  if (type === 'LABORATORY' || type === 'LAB') return 'Laboratory'
+  if (type === 'SEMINAR_ROOM') return 'Seminar Room'
+  if (type === 'TRAINING_ROOM') return 'Training Room'
+  if (type === 'WORKSHOP_AREA') return 'Workshop Area'
+  if (type === 'LIBRARY_SPACE') return 'Library Space'
+  if (type === 'AUDITORIUM') return 'Auditorium'
+  if (type === 'MEETING_ROOM') return 'Meeting Room'
+  if (type === 'EQUIPMENT') return 'Equipment'
+  if (type === 'STUDIO') return 'Studio'
+  if (type === 'OTHER') return 'Other'
+  return String(type || 'Unknown').replace(/_/g, ' ')
+}
+
+function normalizeTypeForForm(type) {
+  if (type === 'CLASSROOM') return 'LECTURE_HALL'
+  if (type === 'LAB') return 'LABORATORY'
+  return type || 'LECTURE_HALL'
+}
+
+function matchesTypeFilter(resourceType, selectedType) {
+  if (!selectedType) return true
+  if (selectedType === 'LECTURE_HALL') {
+    return resourceType === 'LECTURE_HALL' || resourceType === 'CLASSROOM'
+  }
+  if (selectedType === 'LABORATORY') {
+    return resourceType === 'LABORATORY' || resourceType === 'LAB'
+  }
+  return resourceType === selectedType
+}
+
+function normalizeTypeForApi(type) {
+  if (type === 'LECTURE_HALL') return 'CLASSROOM'
+  if (type === 'LABORATORY') return 'LAB'
+  return type
+}
+
 function getStatusMeta(status) {
   if (status === 'ACTIVE') {
     return {
@@ -118,7 +156,7 @@ function validateForm(data) {
 
 const EMPTY_FORM = {
   name: '',
-  type: 'CLASSROOM',
+  type: 'LECTURE_HALL',
   capacity: '',
   location: '',
   availabilityStartDate: getTodayIsoDate(),
@@ -160,7 +198,7 @@ export default function AdminCatalogue() {
 
   const filtered = useMemo(() => {
     return resources.filter((resource) => {
-      const typeMatch = !filters.type || resource.type === filters.type
+      const typeMatch = matchesTypeFilter(resource.type, filters.type)
       const locationMatch =
         !filters.location ||
         (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
@@ -204,7 +242,7 @@ export default function AdminCatalogue() {
 
     const payload = {
       name: formData.name.trim(),
-      type: formData.type,
+      type: normalizeTypeForApi(formData.type),
       capacity: Number(formData.capacity),
       location: formData.location.trim(),
       availabilityStartDate: formData.availabilityStartDate,
@@ -252,7 +290,7 @@ export default function AdminCatalogue() {
     setEditingId(resource.id)
     setFormData({
       name: resource.name || '',
-      type: resource.type || 'CLASSROOM',
+      type: normalizeTypeForForm(resource.type),
       capacity: String(resource.capacity ?? ''),
       location: resource.location || '',
       availabilityStartDate: resource.availabilityStartDate || getTodayIsoDate(),
@@ -358,7 +396,7 @@ export default function AdminCatalogue() {
                 <option value="">All Types</option>
                 {RESOURCE_TYPES.map((type) => (
                   <option key={type} value={type}>
-                    {type.replace('_', ' ')}
+                    {getTypeLabel(type)}
                   </option>
                 ))}
               </select>
@@ -450,7 +488,7 @@ export default function AdminCatalogue() {
                 >
                   {RESOURCE_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {type.replace('_', ' ')}
+                      {getTypeLabel(type)}
                     </option>
                   ))}
                 </select>
@@ -664,7 +702,7 @@ export default function AdminCatalogue() {
                     return (
                       <tr key={resource.id} className="transition hover:bg-slate-50">
                         <td className="px-5 py-4 font-medium text-slate-950">{resource.name}</td>
-                        <td className="px-5 py-4">{resource.type?.replace('_', ' ')}</td>
+                        <td className="px-5 py-4">{getTypeLabel(resource.type)}</td>
                         <td className="px-5 py-4">{resource.location}</td>
                         <td className="px-5 py-4 text-sm text-slate-600">
                           {resource.availabilityStartDate && resource.availabilityEndDate
