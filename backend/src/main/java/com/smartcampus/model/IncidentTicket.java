@@ -56,6 +56,11 @@ public class IncidentTicket {
 
     private Status status;
 
+    private String rejectReason;
+
+    /** Name or identifier of assigned technician/staff (free text until Module E links users). */
+    private String assignedTo;
+
     private Instant createdAt;
 
     /** Stored filenames under upload dir (not full paths in JSON). */
@@ -131,6 +136,22 @@ public class IncidentTicket {
 
     public void setStatus(Status status) {
         this.status = status;
+    }
+
+    public String getRejectReason() {
+        return rejectReason;
+    }
+
+    public void setRejectReason(String rejectReason) {
+        this.rejectReason = rejectReason;
+    }
+
+    public String getAssignedTo() {
+        return assignedTo;
+    }
+
+    public void setAssignedTo(String assignedTo) {
+        this.assignedTo = assignedTo;
     }
 
     public Instant getCreatedAt() {
