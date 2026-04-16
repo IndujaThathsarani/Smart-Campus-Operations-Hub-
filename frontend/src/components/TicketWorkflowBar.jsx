@@ -59,7 +59,7 @@ export default function TicketWorkflowBar({ status, rejectReason }) {
               >
                 {step.label}
               </span>
-              {i < MAIN_STEPS.length - 1 && <span className="mx-1 text-[10px] text-gray-300">?</span>}
+              {i < MAIN_STEPS.length - 1 && <span className="mx-1 text-[10px] text-gray-300">{'->'}</span>}
             </li>
           )
         })}
@@ -67,4 +67,6 @@ export default function TicketWorkflowBar({ status, rejectReason }) {
     </div>
   )
 }
+
+
 

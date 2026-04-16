@@ -71,7 +71,7 @@ export default function TicketsListPage() {
         <h1 className="mb-2 text-2xl font-semibold text-slate-900">Incident tickets</h1>
         <p className="text-sm leading-relaxed text-gray-600">
           List is loaded from the API / MongoDB (not browser storage). Track your reports:{' '}
-          <strong>Open</strong> ? <strong>In progress</strong> ? <strong>Resolved</strong> ?{' '}
+          <strong>Open</strong> {'->'} <strong>In progress</strong> {'->'} <strong>Resolved</strong> {'->'}{' '}
           <strong>Closed</strong>. An admin may set <strong>Rejected</strong> with a reason instead.
         </p>
       </header>
@@ -147,4 +147,6 @@ export default function TicketsListPage() {
     </section>
   )
 }
+
+
 

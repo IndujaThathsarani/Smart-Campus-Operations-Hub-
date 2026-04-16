@@ -125,7 +125,7 @@ export default function TicketCreatePage() {
     <section className="max-w-2xl">
       <div className="mb-3">
         <Link to="/tickets" className="text-sm text-gray-600 hover:text-slate-900 hover:underline">
-          ? Back to tickets
+          {'<-'} Back to tickets
         </Link>
       </div>
 
@@ -282,4 +282,6 @@ export default function TicketCreatePage() {
     </section>
   )
 }
+
+
 
