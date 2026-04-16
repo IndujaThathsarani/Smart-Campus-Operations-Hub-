@@ -81,4 +81,29 @@ export async function apiSend(path, { method = 'GET', headers = {}, body } = {})
   return parsed
 }
 
+export async function apiDelete(path) {
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    })
+  } catch (e) {
+    const err = new Error(
+      `Cannot reach the API at ${API_BASE_URL}. Is the backend running?`,
+    )
+    err.body = { message: err.message }
+    err.cause = e
+    throw err
+  }
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    const err = new Error(response.statusText || 'Request failed')
+    err.status = response.status
+    err.body = body
+    throw err
+  }
+  return body
+}
+
 export { API_BASE_URL }
