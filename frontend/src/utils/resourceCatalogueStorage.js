@@ -4,7 +4,7 @@ const DEFAULT_RESOURCES = [
   {
     id: 'res-1',
     name: 'Lecture Hall A1',
-    type: 'CLASSROOM',
+    type: 'LECTURE_HALL',
     capacity: 120,
     location: 'Building A',
     availabilityStart: '08:00',
@@ -15,7 +15,7 @@ const DEFAULT_RESOURCES = [
   {
     id: 'res-2',
     name: 'Computer Lab B2',
-    type: 'LAB',
+    type: 'LABORATORY',
     capacity: 40,
     location: 'Building B',
     availabilityStart: '09:00',
@@ -37,10 +37,16 @@ const DEFAULT_RESOURCES = [
 ]
 
 export const RESOURCE_TYPES = [
-  'CLASSROOM',
-  'LAB',
-  'AUDITORIUM',
+  'LECTURE_HALL',
+  'LABORATORY',
   'MEETING_ROOM',
+  'AUDITORIUM',
+  'SEMINAR_ROOM',
+  'EQUIPMENT',
+  'TRAINING_ROOM',
+  'WORKSHOP_AREA',
+  'STUDIO',
+  'LIBRARY_SPACE',
   'OTHER',
 ]
 
