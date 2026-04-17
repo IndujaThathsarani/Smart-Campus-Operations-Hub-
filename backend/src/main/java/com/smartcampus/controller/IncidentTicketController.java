@@ -46,6 +46,7 @@ public class IncidentTicketController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<IncidentTicket> create(
+            @RequestParam(value = "resourceId", required = false) String resourceId,
             @RequestParam("location") String location,
             @RequestParam("category") String category,
             @RequestParam("priority") String priority,
@@ -55,6 +56,7 @@ public class IncidentTicketController {
             @RequestParam(value = "files", required = false) MultipartFile[] files
     ) {
         IncidentTicket created = incidentTicketService.createWithAttachments(
+                resourceId,
                 location,
                 category,
                 priority,
