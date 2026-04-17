@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
-// import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
-import './TicketsPage.css'
 
 const MAX_ATTACHMENTS = 3
 
@@ -18,9 +16,7 @@ function formatSubmitError(err) {
 
 export default function TicketCreatePage() {
   const navigate = useNavigate()
-  // const { resources, loading: resourcesLoading, loadError: resourcesLoadError } = useResources()
 
-  // const [resourceId, setResourceId] = useState('')
   const [location, setLocation] = useState('')
   const [category, setCategory] = useState('GENERAL')
   const [description, setDescription] = useState('')
@@ -31,7 +27,6 @@ export default function TicketCreatePage() {
   const [submitPhase, setSubmitPhase] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
 
-  /** @type {[{ file: File, url: string }]} */
   const [attachments, setAttachments] = useState([])
   const attachmentsRef = useRef(attachments)
 
@@ -75,10 +70,8 @@ export default function TicketCreatePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    // const hasResource = Boolean(resourceId)
     const hasLocation = location.trim().length > 0
-    const hasContact =
-      contactEmail.trim().length > 0 || contactPhone.trim().length > 0
+    const hasContact = contactEmail.trim().length > 0 || contactPhone.trim().length > 0
 
     if (!hasLocation || !hasContact || description.trim().length < 10) {
       return
@@ -88,9 +81,6 @@ export default function TicketCreatePage() {
     setSubmitError(null)
 
     const formData = new FormData()
-    // if (resourceId) {
-    //   formData.append('resourceId', resourceId)
-    // }
     formData.append('location', location.trim())
     formData.append('category', category)
     formData.append('priority', priority)
@@ -110,7 +100,6 @@ export default function TicketCreatePage() {
 
       attachments.forEach((a) => URL.revokeObjectURL(a.url))
       setAttachments([])
-      // setResourceId('')
       setLocation('')
       setCategory('GENERAL')
       setDescription('')
@@ -125,7 +114,6 @@ export default function TicketCreatePage() {
     }
   }
 
-  // When resource field is restored: (Boolean(resourceId) || location.trim().length > 0) && …
   const canSubmit =
     location.trim().length > 0 &&
     (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
@@ -134,52 +122,27 @@ export default function TicketCreatePage() {
   const submitting = submitPhase === 'loading'
 
   return (
-    <section className="tickets-page">
-      <div className="ticket-create-nav">
-        <Link to="/tickets" className="ticket-back-link">
-          ← Back to tickets
+    <section className="max-w-2xl">
+      <div className="mb-3">
+        <Link to="/tickets" className="text-sm text-gray-600 hover:text-slate-900 hover:underline">
+          {'<-'} Back to tickets
         </Link>
       </div>
 
-      <h1 className="page-title">New incident ticket</h1>
-
-      {/* {resourcesLoadError && (
-        <p className="form-banner form-banner--warn" role="status">
-          {resourcesLoadError}
-        </p>
-      )} */}
+      <h1 className="mb-2 text-2xl font-semibold text-slate-900">New incident ticket</h1>
 
       {submitPhase === 'error' && submitError && (
-        <p className="form-banner form-banner--err" role="alert">
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800" role="alert">
           {submitError}
         </p>
       )}
 
-      <form className="ticket-form" onSubmit={handleSubmit} noValidate>
-        <h2 className="ticket-form-heading">Report details</h2>
-        <div className="form-stack">
-          {/* Resource (catalogue) — restore when catalogue API is ready:
-          <div className="form-field">
-            <label htmlFor="resource">Resource (from catalogue)</label>
-            <select
-              id="resource"
-              value={resourceId}
-              onChange={(e) => setResourceId(e.target.value)}
-              disabled={submitting || resourcesLoading}
-            >
-              <option value="">— None —</option>
-              {resources.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} — {r.location}
-                </option>
-              ))}
-            </select>
-            <p className="hint">Optional if you describe the location below.</p>
-          </div>
-          */}
+      <form className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" onSubmit={handleSubmit} noValidate>
+        <h2 className="mb-5 text-[1.05rem] font-semibold text-gray-900">Report details</h2>
 
-          <div className="form-field">
-            <label htmlFor="location">Location</label>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="location" className="text-sm font-medium text-gray-700">Location</label>
             <input
               id="location"
               type="text"
@@ -188,44 +151,43 @@ export default function TicketCreatePage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
-            <p className="hint">Where the incident happened (building, room, area).</p>
+            <p className="m-0 text-xs text-gray-500">Where the incident happened (building, room, area).</p>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="category">Category</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="category" className="text-sm font-medium text-gray-700">Category</label>
             <select
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               {TICKET_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
+                <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="priority">Priority</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="priority" className="text-sm font-medium text-gray-700">Priority</label>
             <select
               id="priority"
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               {TICKET_PRIORITIES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
+                <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </select>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="description">Description</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="description" className="text-sm font-medium text-gray-700">Description</label>
             <textarea
               id="description"
               required
@@ -235,11 +197,12 @@ export default function TicketCreatePage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={submitting}
+              className="min-h-28 resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
           </div>
 
-          <div className="form-field">
-            <label htmlFor="email">Preferred contact email</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">Preferred contact email</label>
             <input
               id="email"
               type="email"
@@ -248,11 +211,12 @@ export default function TicketCreatePage() {
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
           </div>
 
-          <div className="form-field">
-            <label htmlFor="phone">Preferred contact phone</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="phone" className="text-sm font-medium text-gray-700">Preferred contact phone</label>
             <input
               id="phone"
               type="tel"
@@ -261,17 +225,17 @@ export default function TicketCreatePage() {
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
-            <p className="hint">Provide at least email or phone.</p>
+            <p className="m-0 text-xs text-gray-500">Provide at least email or phone.</p>
           </div>
 
-          <div className="attachments-section">
-            <label htmlFor="evidence">Evidence images</label>
-            <p className="hint">
-              Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not
-              required — use the file picker.
+          <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-4 py-3">
+            <label htmlFor="evidence" className="mb-1 block text-sm font-semibold text-gray-700">Evidence images</label>
+            <p className="mb-3 text-xs text-gray-500">
+              Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not required — use the file picker.
             </p>
-            <div className="file-input-wrap">
+            <div>
               <input
                 id="evidence"
                 type="file"
@@ -279,19 +243,19 @@ export default function TicketCreatePage() {
                 multiple
                 disabled={submitting || attachments.length >= MAX_ATTACHMENTS}
                 onChange={handleFileChange}
+                className="max-w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-slate-800 disabled:cursor-not-allowed"
               />
             </div>
-            <p className="attachment-count">
-              {attachments.length} / {MAX_ATTACHMENTS} attached
-            </p>
+            <p className="mt-2 text-xs text-slate-500">{attachments.length} / {MAX_ATTACHMENTS} attached</p>
+
             {attachments.length > 0 && (
-              <div className="preview-grid">
+              <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2.5">
                 {attachments.map((a, index) => (
-                  <div key={a.url} className="preview-item">
-                    <img src={a.url} alt={a.file.name} />
+                  <div key={a.url} className="relative aspect-square overflow-hidden rounded-md border border-gray-200 bg-gray-200">
+                    <img src={a.url} alt={a.file.name} className="block h-full w-full object-cover" />
                     <button
                       type="button"
-                      className="preview-remove"
+                      className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-base leading-none text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={`Remove image ${index + 1}`}
                       onClick={() => removeAttachment(index)}
                       disabled={submitting}
@@ -304,8 +268,12 @@ export default function TicketCreatePage() {
             )}
           </div>
 
-          <div className="form-actions">
-            <button type="submit" className="btn-submit" disabled={!canSubmit || submitting}>
+          <div className="mt-2 border-t border-gray-200 pt-4">
+            <button
+              type="submit"
+              className="rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={!canSubmit || submitting}
+            >
               {submitting ? 'Submitting…' : 'Submit ticket'}
             </button>
           </div>
@@ -314,3 +282,6 @@ export default function TicketCreatePage() {
     </section>
   )
 }
+
+
+

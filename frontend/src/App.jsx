@@ -5,6 +5,7 @@ import ResourcesPage from './pages/resources/ResourcesPage'
 import BookingsPage from './pages/bookings/BookingsPage'
 import TicketCreatePage from './pages/tickets/TicketCreatePage'
 import TicketsListPage from './pages/tickets/TicketsListPage'
+import AdminTicketsPage from './pages/tickets/AdminTicketsPage'
 import NotificationsPage from './pages/notifications/NotificationsPage'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
             <Route path="bookings" element={<BookingsPage />} />
             <Route path="tickets" element={<TicketsListPage />} />
             <Route path="tickets/new" element={<TicketCreatePage />} />
+            <Route path="admin/tickets" element={<AdminTicketsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
           </Route>
         </Route>
