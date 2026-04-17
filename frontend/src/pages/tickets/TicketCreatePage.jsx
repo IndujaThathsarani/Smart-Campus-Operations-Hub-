@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
+import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
 
 const MAX_ATTACHMENTS = 3
@@ -18,6 +19,7 @@ export default function TicketCreatePage() {
   const navigate = useNavigate()
 
   const [location, setLocation] = useState('')
+  const [resourceId, setResourceId] = useState('')
   const [category, setCategory] = useState('GENERAL')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('MEDIUM')
@@ -29,6 +31,7 @@ export default function TicketCreatePage() {
 
   const [attachments, setAttachments] = useState([])
   const attachmentsRef = useRef(attachments)
+  const { resources, loading: resourcesLoading, loadError: resourcesError } = useResources()
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -82,6 +85,7 @@ export default function TicketCreatePage() {
 
     const formData = new FormData()
     formData.append('location', location.trim())
+    if (resourceId) formData.append('resourceId', resourceId)
     formData.append('category', category)
     formData.append('priority', priority)
     formData.append('description', description.trim())
@@ -101,6 +105,7 @@ export default function TicketCreatePage() {
       attachments.forEach((a) => URL.revokeObjectURL(a.url))
       setAttachments([])
       setLocation('')
+      setResourceId('')
       setCategory('GENERAL')
       setDescription('')
       setPriority('MEDIUM')
@@ -141,6 +146,28 @@ export default function TicketCreatePage() {
         <h2 className="mb-5 text-[1.05rem] font-semibold text-gray-900">Report details</h2>
 
         <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="resourceId" className="text-sm font-medium text-gray-700">Resource (optional)</label>
+            <select
+              id="resourceId"
+              value={resourceId}
+              onChange={(e) => setResourceId(e.target.value)}
+              disabled={submitting || resourcesLoading}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+            >
+              <option value="">Not linked to a specific resource</option>
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name || 'Unnamed resource'} ({r.type || 'OTHER'})
+                </option>
+              ))}
+            </select>
+            <p className="m-0 text-xs text-gray-500">
+              Link this incident to a resource from Module A for traceability.
+            </p>
+            {resourcesError && <p className="m-0 text-xs text-amber-700">{resourcesError}</p>}
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label htmlFor="location" className="text-sm font-medium text-gray-700">Location</label>
             <input
