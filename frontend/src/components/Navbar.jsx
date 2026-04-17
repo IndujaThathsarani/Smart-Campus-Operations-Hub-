@@ -19,9 +19,6 @@ export default function Navbar() {
           <NavLink to="/tickets" className={linkClass}>
             Tickets
           </NavLink>
-          <NavLink to="/admin/tickets" className={linkClass}>
-            Admin Tickets
-          </NavLink>
           <NavLink to="/notifications" className={linkClass}>
             Notifications
           </NavLink>

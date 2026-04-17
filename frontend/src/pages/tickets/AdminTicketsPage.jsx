@@ -314,41 +314,36 @@ export default function AdminTicketsPage() {
   )
 
   return (
-    <section className="max-w-6xl">
-      <h1 className="mb-2 text-2xl font-semibold text-slate-900">Admin: Incident ticket operations</h1>
-      <p className="mb-5 text-sm leading-relaxed text-gray-600">
-        Manage maintenance and incident tickets across the full admin workflow.
-      </p>
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-slate-100 md:flex-row md:items-stretch">
+      <aside className="flex min-h-0 w-full shrink-0 flex-col border-b border-white/10 bg-[#0f172a] text-slate-200 md:h-full md:w-60 md:border-b-0 md:border-r md:border-white/10">
+        <nav
+          aria-label="Admin ticket tasks"
+          className="flex max-h-[38vh] flex-col gap-1 overflow-y-auto p-2 md:max-h-none md:flex-1 md:flex-col md:gap-2 md:overflow-y-visible md:px-3 md:py-4"
+        >
+          {ADMIN_TABS.map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full shrink-0 rounded-md px-3 py-2.5 text-left text-sm transition md:flex md:min-h-0 md:flex-1 md:items-center md:justify-start md:py-0 md:leading-snug ${
+                  isActive
+                    ? 'bg-white/[0.14] text-white'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </nav>
+      </aside>
 
-      <div className="grid gap-4 md:grid-cols-[16rem,1fr]">
-        <aside className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-          <h2 className="mb-2 px-2 text-sm font-semibold text-slate-800">Admin tasks</h2>
-          <nav aria-label="Admin ticket tasks" className="space-y-1">
-            {ADMIN_TABS.map((tab) => {
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
-                    isActive
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </nav>
-        </aside>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {activeTab === 'view_all' ? (
-            <>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-slate-900">View all tickets</h2>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
                 <button
                   type="button"
                   onClick={loadTickets}
@@ -359,25 +354,26 @@ export default function AdminTicketsPage() {
               </div>
 
               {statusActionSuccess && (
-                <p className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <p className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
                   {statusActionSuccess}
                 </p>
               )}
               {statusActionError && (
-                <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {statusActionError}
                 </p>
               )}
 
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
               {loading && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading all tickets...
                 </div>
               )}
 
               {!loading && error && (
                 <div
-                  className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  className="shrink-0 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                   role="alert"
                 >
                   {error}
@@ -385,15 +381,15 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length === 0 && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   No tickets found in the database.
                 </div>
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
                   <table className="min-w-full border-separate border-spacing-0 text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
                           Ticket ID
@@ -465,11 +461,11 @@ export default function AdminTicketsPage() {
                   </table>
                 </div>
               )}
-            </>
+              </div>
+            </div>
           ) : activeTab === 'change_status' ? (
-            <>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-slate-900">Change ticket status</h2>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
                 <button
                   type="button"
                   onClick={loadTickets}
@@ -480,25 +476,26 @@ export default function AdminTicketsPage() {
               </div>
 
               {statusActionError && (
-                <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {statusActionError}
                 </p>
               )}
               {statusActionSuccess && (
-                <p className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <p className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
                   {statusActionSuccess}
                 </p>
               )}
 
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
               {loading && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
                 </div>
               )}
 
               {!loading && error && (
                 <div
-                  className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  className="shrink-0 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                   role="alert"
                 >
                   {error}
@@ -506,15 +503,15 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length === 0 && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   No tickets found in the database.
                 </div>
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
                   <table className="min-w-full border-separate border-spacing-0 text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
                           Ticket ID
@@ -599,11 +596,11 @@ export default function AdminTicketsPage() {
                   </table>
                 </div>
               )}
-            </>
+              </div>
+            </div>
           ) : activeTab === 'reject_reason' ? (
-            <>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-slate-900">Reject with reason</h2>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
                 <button
                   type="button"
                   onClick={loadTickets}
@@ -613,31 +610,27 @@ export default function AdminTicketsPage() {
                 </button>
               </div>
 
-              <p className="mb-3 text-sm text-gray-600">
-                This action sets the ticket status to <strong>REJECTED</strong> and stores the
-                reason for user visibility.
-              </p>
-
               {rejectError && (
-                <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {rejectError}
                 </p>
               )}
               {rejectSuccess && (
-                <p className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <p className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
                   {rejectSuccess}
                 </p>
               )}
 
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
               {loading && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
                 </div>
               )}
 
               {!loading && error && (
                 <div
-                  className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  className="shrink-0 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                   role="alert"
                 >
                   {error}
@@ -645,21 +638,21 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length === 0 && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   No tickets found in the database.
                 </div>
               )}
 
               {!loading && !error && tickets.filter((t) => t.status !== 'REJECTED').length === 0 && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   All available tickets are already rejected.
                 </div>
               )}
 
               {!loading && !error && tickets.filter((t) => t.status !== 'REJECTED').length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
                   <table className="min-w-full border-separate border-spacing-0 text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
                           Ticket ID
@@ -747,11 +740,11 @@ export default function AdminTicketsPage() {
                   </table>
                 </div>
               )}
-            </>
+              </div>
+            </div>
           ) : activeTab === 'assign_staff' ? (
-            <>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-slate-900">Assign technician/staff</h2>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
                 <button
                   type="button"
                   onClick={loadTickets}
@@ -761,31 +754,27 @@ export default function AdminTicketsPage() {
                 </button>
               </div>
 
-              <p className="mb-3 text-sm text-gray-600">
-                Enter a staff name or ID. Clear the field and save to unassign. (Module E can later
-                replace this with a real user picker.)
-              </p>
-
               {assignError && (
-                <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {assignError}
                 </p>
               )}
               {assignSuccess && (
-                <p className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <p className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
                   {assignSuccess}
                 </p>
               )}
 
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
               {loading && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
                 </div>
               )}
 
               {!loading && error && (
                 <div
-                  className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  className="shrink-0 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                   role="alert"
                 >
                   {error}
@@ -793,15 +782,15 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length === 0 && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   No tickets found in the database.
                 </div>
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
                   <table className="min-w-full border-separate border-spacing-0 text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
                           Ticket ID
@@ -889,101 +878,97 @@ export default function AdminTicketsPage() {
                   </table>
                 </div>
               )}
-            </>
+              </div>
+            </div>
           ) : activeTab === 'filters' ? (
-            <>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
+                <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+                  <div className="flex min-w-[10rem] flex-col gap-1">
+                    <label htmlFor="filter-status" className="text-xs font-medium text-gray-600">
+                      Status
+                    </label>
+                    <select
+                      id="filter-status"
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    >
+                      <option value="">All statuses</option>
+                      {FILTER_STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {formatEnum(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex min-w-[10rem] flex-col gap-1">
+                    <label htmlFor="filter-priority" className="text-xs font-medium text-gray-600">
+                      Priority
+                    </label>
+                    <select
+                      id="filter-priority"
+                      value={filterPriority}
+                      onChange={(e) => setFilterPriority(e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    >
+                      <option value="">All priorities</option>
+                      {TICKET_PRIORITIES.map((p) => (
+                        <option key={p.value} value={p.value}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex min-w-[12rem] flex-col gap-1">
+                    <label htmlFor="filter-category" className="text-xs font-medium text-gray-600">
+                      Category
+                    </label>
+                    <select
+                      id="filter-category"
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    >
+                      <option value="">All categories</option>
+                      {TICKET_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterStatus('')
+                      setFilterPriority('')
+                      setFilterCategory('')
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Clear filters
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={loadFilteredTickets}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
+                  className="shrink-0 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
                 >
                   Refresh
                 </button>
               </div>
 
-              <p className="mb-3 text-sm text-gray-600">
-                Filter by status, priority, and/or category. Results are returned newest first.
-              </p>
-
-              <div className="mb-4 flex flex-wrap items-end gap-3">
-                <div className="flex min-w-[10rem] flex-col gap-1">
-                  <label htmlFor="filter-status" className="text-xs font-medium text-gray-600">
-                    Status
-                  </label>
-                  <select
-                    id="filter-status"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  >
-                    <option value="">All statuses</option>
-                    {FILTER_STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {formatEnum(s)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex min-w-[10rem] flex-col gap-1">
-                  <label htmlFor="filter-priority" className="text-xs font-medium text-gray-600">
-                    Priority
-                  </label>
-                  <select
-                    id="filter-priority"
-                    value={filterPriority}
-                    onChange={(e) => setFilterPriority(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  >
-                    <option value="">All priorities</option>
-                    {TICKET_PRIORITIES.map((p) => (
-                      <option key={p.value} value={p.value}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex min-w-[12rem] flex-col gap-1">
-                  <label htmlFor="filter-category" className="text-xs font-medium text-gray-600">
-                    Category
-                  </label>
-                  <select
-                    id="filter-category"
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                  >
-                    <option value="">All categories</option>
-                    {TICKET_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilterStatus('')
-                    setFilterPriority('')
-                    setFilterCategory('')
-                  }}
-                  className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Clear filters
-                </button>
-              </div>
-
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
               {loading && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
                 </div>
               )}
 
               {!loading && error && (
                 <div
-                  className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  className="shrink-0 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
                   role="alert"
                 >
                   {error}
@@ -991,15 +976,15 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length === 0 && (
-                <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
+                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   No tickets match these filters.
                 </div>
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
                   <table className="min-w-full border-separate border-spacing-0 text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
                           Ticket ID
@@ -1071,17 +1056,19 @@ export default function AdminTicketsPage() {
                   </table>
                 </div>
               )}
-            </>
+              </div>
+            </div>
           ) : (
-            <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center">
-              <p className="text-sm font-medium text-slate-700">{activeTabLabel}</p>
-              <p className="mt-1 text-sm text-gray-500">
-                UI placeholder created. We can implement this task next.
-              </p>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto p-6">
+              <div className="rounded-md border border-dashed border-gray-300 bg-white px-8 py-10 text-center">
+                <p className="text-sm font-medium text-slate-700">{activeTabLabel}</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  UI placeholder created. We can implement this task next.
+                </p>
+              </div>
             </div>
           )}
-        </div>
       </div>
-    </section>
+    </div>
   )
 }
