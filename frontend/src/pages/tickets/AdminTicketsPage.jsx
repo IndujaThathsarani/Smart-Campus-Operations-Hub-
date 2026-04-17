@@ -82,6 +82,11 @@ export default function AdminTicketsPage() {
   const [filterPriority, setFilterPriority] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
   const [deletingId, setDeletingId] = useState(null)
+  const [selectedTicketId, setSelectedTicketId] = useState(null)
+  const [newCommentBody, setNewCommentBody] = useState('')
+  const [newCommentAuthor, setNewCommentAuthor] = useState('ADMIN')
+  const [commentSubmitting, setCommentSubmitting] = useState(false)
+  const [commentActionId, setCommentActionId] = useState(null)
 
   const loadTickets = useCallback(async () => {
     setLoading(true)
@@ -129,7 +134,8 @@ export default function AdminTicketsPage() {
       activeTab === 'view_all' ||
       activeTab === 'change_status' ||
       activeTab === 'reject_reason' ||
-      activeTab === 'assign_staff'
+      activeTab === 'assign_staff' ||
+      activeTab === 'comment_moderation'
     ) {
       loadTickets()
     }
@@ -308,9 +314,66 @@ export default function AdminTicketsPage() {
     [refreshTickets],
   )
 
-  const activeTabLabel = useMemo(
-    () => ADMIN_TABS.find((tab) => tab.id === activeTab)?.label ?? 'Admin task',
-    [activeTab],
+  const selectedTicket = useMemo(
+    () => tickets.find((t) => t.id === selectedTicketId) ?? null,
+    [tickets, selectedTicketId],
+  )
+
+  const handleAddComment = useCallback(async () => {
+    if (!selectedTicketId || !newCommentBody.trim()) return
+    setCommentSubmitting(true)
+    try {
+      await apiSend(`/api/tickets/${selectedTicketId}/comments`, {
+        method: 'POST',
+        body: {
+          body: newCommentBody.trim(),
+          author: newCommentAuthor.trim() || 'ADMIN',
+        },
+      })
+      setNewCommentBody('')
+      await refreshTickets()
+    } catch (e) {
+      setError(e?.body?.message || e?.message || 'Could not add comment.')
+    } finally {
+      setCommentSubmitting(false)
+    }
+  }, [newCommentAuthor, newCommentBody, refreshTickets, selectedTicketId])
+
+  const handleToggleCommentHidden = useCallback(
+    async (ticketId, commentId, hidden) => {
+      setCommentActionId(commentId)
+      try {
+        await apiSend(`/api/tickets/${ticketId}/comments/${commentId}`, {
+          method: 'PATCH',
+          body: { hidden },
+        })
+        await refreshTickets()
+      } catch (e) {
+        setError(e?.body?.message || e?.message || 'Could not update comment.')
+      } finally {
+        setCommentActionId(null)
+      }
+    },
+    [refreshTickets],
+  )
+
+  const handleDeleteComment = useCallback(
+    async (ticketId, commentId) => {
+      const ok = window.confirm('Delete this comment permanently?')
+      if (!ok) return
+      setCommentActionId(commentId)
+      try {
+        await apiSend(`/api/tickets/${ticketId}/comments/${commentId}`, {
+          method: 'DELETE',
+        })
+        await refreshTickets()
+      } catch (e) {
+        setError(e?.body?.message || e?.message || 'Could not delete comment.')
+      } finally {
+        setCommentActionId(null)
+      }
+    },
+    [refreshTickets],
   )
 
   return (
@@ -1058,16 +1121,188 @@ export default function AdminTicketsPage() {
               )}
               </div>
             </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto p-6">
-              <div className="rounded-md border border-dashed border-gray-300 bg-white px-8 py-10 text-center">
-                <p className="text-sm font-medium text-slate-700">{activeTabLabel}</p>
-                <p className="mt-1 text-sm text-gray-500">
-                  UI placeholder created. We can implement this task next.
-                </p>
+          ) : activeTab === 'comment_moderation' ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
+                <button
+                  type="button"
+                  onClick={loadTickets}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
+                >
+                  Refresh
+                </button>
               </div>
+
+              {loading && (
+                <div className="flex flex-1 items-center justify-center p-8 text-sm text-gray-500">
+                  Loading tickets...
+                </div>
+              )}
+
+              {!loading && error && (
+                <div
+                  className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  role="alert"
+                >
+                  {error}
+                </div>
+              )}
+
+              {!loading && !error && tickets.length === 0 && (
+                <div className="flex flex-1 items-center justify-center p-8 text-sm text-gray-500">
+                  No tickets in the database.
+                </div>
+              )}
+
+              {!loading && !error && tickets.length > 0 && (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:flex-row">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:max-w-[50%]">
+                  <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                    <table className="min-w-full border-separate border-spacing-0 text-sm">
+                      <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
+                        <tr>
+                          <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
+                            Ticket
+                          </th>
+                          <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
+                            Location
+                          </th>
+                          <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
+                            Comments
+                          </th>
+                          <th className="border-b border-gray-200 px-3 py-2 text-right font-semibold text-slate-700">
+                            Select
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tickets.map((ticket) => {
+                          const list = ticket.comments || []
+                          const visible = list.filter((c) => !c.hidden).length
+                          const isSel = selectedTicketId === ticket.id
+                          return (
+                            <tr
+                              key={ticket.id}
+                              className={`odd:bg-white even:bg-slate-50/60 ${isSel ? 'bg-slate-100' : ''}`}
+                            >
+                              <td className="max-w-[8rem] border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
+                                {ticket.id}
+                              </td>
+                              <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
+                                {ticket.location || '—'}
+                              </td>
+                              <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
+                                {list.length === 0
+                                  ? '—'
+                                  : `${visible} visible / ${list.length} total`}
+                              </td>
+                              <td className="border-b border-gray-100 px-3 py-2 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTicketId(ticket.id)}
+                                  className="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-800"
+                                >
+                                  {isSel ? 'Selected' : 'Select'}
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-slate-200 bg-white p-3">
+                  {!selectedTicket && (
+                    <p className="m-0 flex flex-1 items-center justify-center text-center text-sm text-gray-500">
+                      Select a ticket to view and moderate comments.
+                    </p>
+                  )}
+                  {selectedTicket && (
+                    <>
+                      <p className="mb-2 shrink-0 font-mono text-xs text-slate-500">{selectedTicket.id}</p>
+                      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                        {(selectedTicket.comments || []).length === 0 && (
+                          <p className="text-sm text-gray-500">No comments yet.</p>
+                        )}
+                        {(selectedTicket.comments || []).map((c) => (
+                          <div
+                            key={c.id}
+                            className={`rounded-md border px-3 py-2 text-sm ${
+                              c.hidden
+                                ? 'border-amber-200 bg-amber-50'
+                                : 'border-gray-200 bg-slate-50'
+                            }`}
+                          >
+                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-medium text-slate-800">{c.author || '—'}</span>
+                              <time className="text-xs text-gray-500" dateTime={c.createdAt}>
+                                {formatDate(c.createdAt)}
+                              </time>
+                            </div>
+                            {c.hidden && (
+                              <span className="mb-1 inline-block rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">
+                                Hidden from users
+                              </span>
+                            )}
+                            <p className="m-0 whitespace-pre-wrap text-slate-700">{c.body}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={commentActionId === c.id}
+                                onClick={() =>
+                                  handleToggleCommentHidden(selectedTicket.id, c.id, !c.hidden)
+                                }
+                                className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                              >
+                                {c.hidden ? 'Unhide' : 'Hide'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={commentActionId === c.id}
+                                onClick={() => handleDeleteComment(selectedTicket.id, c.id)}
+                                className="rounded border border-red-200 bg-white px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 shrink-0 border-t border-gray-200 pt-3">
+                        <label className="mb-1 block text-xs font-medium text-gray-600">Author label</label>
+                        <input
+                          type="text"
+                          value={newCommentAuthor}
+                          onChange={(e) => setNewCommentAuthor(e.target.value)}
+                          className="mb-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                          placeholder="ADMIN"
+                        />
+                        <label className="mb-1 block text-xs font-medium text-gray-600">New comment</label>
+                        <textarea
+                          value={newCommentBody}
+                          onChange={(e) => setNewCommentBody(e.target.value)}
+                          rows={3}
+                          className="mb-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                          placeholder="Add an internal note or reply…"
+                        />
+                        <button
+                          type="button"
+                          disabled={commentSubmitting || !newCommentBody.trim()}
+                          onClick={handleAddComment}
+                          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                        >
+                          {commentSubmitting ? 'Adding…' : 'Add comment'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              )}
             </div>
-          )}
+          ) : null}
       </div>
     </div>
   )

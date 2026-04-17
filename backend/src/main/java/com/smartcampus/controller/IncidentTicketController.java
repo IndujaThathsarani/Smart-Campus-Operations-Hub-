@@ -1,6 +1,8 @@
 package com.smartcampus.controller;
 
 import com.smartcampus.dto.TicketAssignmentUpdateRequest;
+import com.smartcampus.dto.TicketCommentRequest;
+import com.smartcampus.dto.TicketCommentVisibilityRequest;
 import com.smartcampus.dto.TicketStatusUpdateRequest;
 import com.smartcampus.model.IncidentTicket;
 import com.smartcampus.service.IncidentTicketService;
@@ -86,6 +88,39 @@ public class IncidentTicketController {
                 ticketId,
                 request != null ? request.getAssignedTo() : null
         );
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping(path = "/{ticketId}/comments", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<IncidentTicket> addComment(
+            @PathVariable("ticketId") String ticketId,
+            @RequestBody(required = false) TicketCommentRequest request
+    ) {
+        IncidentTicket updated = incidentTicketService.addComment(
+                ticketId,
+                request != null ? request.getBody() : null,
+                request != null ? request.getAuthor() : null
+        );
+        return new ResponseEntity<>(updated, HttpStatus.CREATED);
+    }
+
+    @PatchMapping(path = "/{ticketId}/comments/{commentId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<IncidentTicket> setCommentHidden(
+            @PathVariable("ticketId") String ticketId,
+            @PathVariable("commentId") String commentId,
+            @RequestBody(required = false) TicketCommentVisibilityRequest request
+    ) {
+        boolean hidden = request != null && request.isHidden();
+        IncidentTicket updated = incidentTicketService.setCommentHidden(ticketId, commentId, hidden);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{ticketId}/comments/{commentId}")
+    public ResponseEntity<IncidentTicket> deleteComment(
+            @PathVariable("ticketId") String ticketId,
+            @PathVariable("commentId") String commentId
+    ) {
+        IncidentTicket updated = incidentTicketService.deleteComment(ticketId, commentId);
         return ResponseEntity.ok(updated);
     }
 
