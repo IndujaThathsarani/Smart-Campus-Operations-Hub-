@@ -1,6 +1,7 @@
 package com.smartcampus.service;
 
 import com.smartcampus.model.IncidentTicket;
+import com.smartcampus.model.Resource;
 import com.smartcampus.model.TicketComment;
 import com.smartcampus.repository.IncidentTicketRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,7 @@ public class IncidentTicketService {
     }
 
     public IncidentTicket createWithAttachments(
+            String resourceIdRaw,
             String location,
             String categoryRaw,
             String priorityRaw,
@@ -62,8 +64,15 @@ public class IncidentTicketService {
 
         String email = blankToNull(contactEmail);
         String phone = blankToNull(contactPhone);
+        String resourceId = blankToNull(resourceIdRaw);
         if (email == null && phone == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provide at least an email or a phone number");
+        }
+        if (resourceId != null) {
+            Query resourceQuery = new Query(Criteria.where("_id").is(resourceId));
+            if (!mongoTemplate.exists(resourceQuery, Resource.class)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected resource does not exist");
+            }
         }
 
         if (description == null || description.trim().length() < 10) {
@@ -99,6 +108,7 @@ public class IncidentTicketService {
         }
 
         IncidentTicket ticket = new IncidentTicket();
+        ticket.setResourceId(resourceId);
         ticket.setLocation(loc);
         ticket.setCategory(category);
         ticket.setPriority(priority);
