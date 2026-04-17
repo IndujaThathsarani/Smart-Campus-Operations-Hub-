@@ -42,7 +42,7 @@ const DEFAULT_CATEGORY_IDS = [
   'WORKSHOP_AREA',
   'STUDIO',
   'LIBRARY_SPACE',
-  'OTHER',
+  'OTHERS',
 ]
 
 function formatTypeLabel(type) {
