@@ -126,6 +126,9 @@ export default function TicketsListPage() {
                 <span className="mx-1.5 text-gray-300">·</span>
                 <time dateTime={t.createdAt}>{formatDate(t.createdAt)}</time>
               </p>
+              <p className="mt-1 break-all font-mono text-xs text-gray-500">
+                Resource: {t.resourceId || 'Not linked'}
+              </p>
 
               <p className="mt-1 text-sm leading-relaxed text-gray-700">{excerpt(t.description)}</p>
               <TicketWorkflowBar status={t.status} rejectReason={t.rejectReason} />

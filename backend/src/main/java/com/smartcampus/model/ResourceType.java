@@ -1,6 +1,5 @@
 package com.smartcampus.model;
 
-<<<<<<< HEAD
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -51,11 +50,3 @@ public enum ResourceType {
         return name();
     }
 }
-=======
-public enum ResourceType {
-    LECTURE_HALL,
-    LAB,
-    MEETING_ROOM,
-    EQUIPMENT
-}
->>>>>>> db5afb5cb4cae49701c21e9ee226a0efe0feae33
