@@ -1,5 +1,14 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
+/** Origin only (no `/api`). Request paths already include `/api/...`. */
+function resolveApiBaseUrl() {
+  const raw = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
+  let base = String(raw).trim().replace(/\/$/, '')
+  if (base.endsWith('/api')) {
+    base = base.slice(0, -4)
+  }
+  return base || 'http://localhost:8081'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 async function parseJsonSafe(response) {
   const text = await response.text()
@@ -79,6 +88,31 @@ export async function apiSend(path, { method = 'GET', headers = {}, body } = {})
     throw err
   }
   return parsed
+}
+
+export async function apiDelete(path) {
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    })
+  } catch (e) {
+    const err = new Error(
+      `Cannot reach the API at ${API_BASE_URL}. Is the backend running?`,
+    )
+    err.body = { message: err.message }
+    err.cause = e
+    throw err
+  }
+  const body = await parseJsonSafe(response)
+  if (!response.ok) {
+    const err = new Error(response.statusText || 'Request failed')
+    err.status = response.status
+    err.body = body
+    throw err
+  }
+  return body
 }
 
 export { API_BASE_URL }

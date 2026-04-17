@@ -56,10 +56,17 @@ public class IncidentTicket {
 
     private Status status;
 
+    private String rejectReason;
+
+    /** Name or identifier of assigned technician/staff (free text until Module E links users). */
+    private String assignedTo;
+
     private Instant createdAt;
 
     /** Stored filenames under upload dir (not full paths in JSON). */
     private List<String> attachmentFileNames = new ArrayList<>();
+
+    private List<TicketComment> comments = new ArrayList<>();
 
     public String getId() {
         return id;
@@ -133,6 +140,22 @@ public class IncidentTicket {
         this.status = status;
     }
 
+    public String getRejectReason() {
+        return rejectReason;
+    }
+
+    public void setRejectReason(String rejectReason) {
+        this.rejectReason = rejectReason;
+    }
+
+    public String getAssignedTo() {
+        return assignedTo;
+    }
+
+    public void setAssignedTo(String assignedTo) {
+        this.assignedTo = assignedTo;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -147,5 +170,13 @@ public class IncidentTicket {
 
     public void setAttachmentFileNames(List<String> attachmentFileNames) {
         this.attachmentFileNames = attachmentFileNames;
+    }
+
+    public List<TicketComment> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<TicketComment> comments) {
+        this.comments = comments;
     }
 }
