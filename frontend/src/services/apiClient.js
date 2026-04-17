@@ -1,5 +1,14 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081/api'
+/** Origin only (no `/api`). Request paths already include `/api/...`. */
+function resolveApiBaseUrl() {
+  const raw = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
+  let base = String(raw).trim().replace(/\/$/, '')
+  if (base.endsWith('/api')) {
+    base = base.slice(0, -4)
+  }
+  return base || 'http://localhost:8081'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 async function parseJsonSafe(response) {
   const text = await response.text()
@@ -13,7 +22,6 @@ async function parseJsonSafe(response) {
 
 export async function apiGet(path) {
   let response
-  console.log(`${API_BASE_URL}${path}`)
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       headers: { Accept: 'application/json' },
