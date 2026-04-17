@@ -13,10 +13,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class BookingController {
     
     @Autowired
@@ -29,7 +31,19 @@ public class BookingController {
     private String getCurrentUserName() {
         return "Temp User";
     }
+
+    @GetMapping("/hello")
+    public String hello() {
+        return "hello";
+    }
     
+    // Handle OPTIONS preflight requests
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<?> handleOptions() {
+        return ResponseEntity.ok().build();
+    }
+    
+    // GET all bookings
     @GetMapping
     public ResponseEntity<List<Booking>> getAllBookings(
             @RequestParam(required = false) BookingStatus status) {
@@ -39,6 +53,7 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getAllBookings());
     }
     
+    // GET user's own bookings
     @GetMapping("/me")
     public ResponseEntity<List<Booking>> getMyBookings() {
         String userId = getCurrentUserId();
@@ -46,12 +61,14 @@ public class BookingController {
         return ResponseEntity.ok(bookings);
     }
     
+    // GET booking by ID
     @GetMapping("/{id}")
     public ResponseEntity<Booking> getBookingById(@PathVariable String id) {
         Booking booking = bookingService.getBookingById(id);
         return ResponseEntity.ok(booking);
     }
     
+    // POST create booking
     @PostMapping
     public ResponseEntity<?> createBooking(@RequestBody BookingDTO bookingDTO) {
         try {
@@ -78,6 +95,7 @@ public class BookingController {
         }
     }
     
+    // PUT approve booking
     @PutMapping("/{id}/approve")
     public ResponseEntity<?> approveBooking(
             @PathVariable String id,
@@ -92,14 +110,15 @@ public class BookingController {
             response.put("status", booking.getStatus());
             
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "NOT_FOUND");
+            error.put("error", "ERROR");
             error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
     
+    // PUT reject booking
     @PutMapping("/{id}/reject")
     public ResponseEntity<?> rejectBooking(
             @PathVariable String id,
@@ -114,14 +133,15 @@ public class BookingController {
             response.put("status", booking.getStatus());
             
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "NOT_FOUND");
+            error.put("error", "ERROR");
             error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
     
+    // PUT cancel booking
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancelBooking(@PathVariable String id) {
         try {
@@ -133,14 +153,15 @@ public class BookingController {
             response.put("status", booking.getStatus());
             
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "NOT_FOUND");
+            error.put("error", "ERROR");
             error.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
     
+    // GET check conflict
     @GetMapping("/check-conflict")
     public ResponseEntity<Map<String, Boolean>> checkConflict(
             @RequestParam String resourceId,
@@ -161,5 +182,42 @@ public class BookingController {
             response.put("hasConflict", false);
             return ResponseEntity.ok(response);
         }
+    }
+    
+    // GET filter bookings
+    @GetMapping("/filter")
+    public ResponseEntity<List<Booking>> filterBookings(
+            @RequestParam(required = false) String resourceId,
+            @RequestParam(required = false) BookingStatus status) {
+        
+        List<Booking> bookings = bookingService.getAllBookings();
+        
+        if (resourceId != null) {
+            bookings = bookings.stream()
+                    .filter(b -> b.getResourceId().equals(resourceId))
+                    .collect(Collectors.toList());
+        }
+        if (status != null) {
+            bookings = bookings.stream()
+                    .filter(b -> b.getStatus() == status)
+                    .collect(Collectors.toList());
+        }
+        
+        return ResponseEntity.ok(bookings);
+    }
+    
+    // GET booking statistics
+    @GetMapping("/statistics")
+    public ResponseEntity<Map<String, Object>> getBookingStatistics() {
+        List<Booking> allBookings = bookingService.getAllBookings();
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("total", allBookings.size());
+        stats.put("pending", allBookings.stream().filter(b -> b.getStatus() == BookingStatus.PENDING).count());
+        stats.put("approved", allBookings.stream().filter(b -> b.getStatus() == BookingStatus.APPROVED).count());
+        stats.put("rejected", allBookings.stream().filter(b -> b.getStatus() == BookingStatus.REJECTED).count());
+        stats.put("cancelled", allBookings.stream().filter(b -> b.getStatus() == BookingStatus.CANCELLED).count());
+        
+        return ResponseEntity.ok(stats);
     }
 }
