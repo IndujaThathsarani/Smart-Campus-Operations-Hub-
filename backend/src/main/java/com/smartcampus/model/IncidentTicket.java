@@ -40,6 +40,9 @@ public class IncidentTicket {
     @Id
     private String id;
 
+    /** Human-friendly ticket number shown in UI (e.g. INC-2026-0001). */
+    private String ticketNumber;
+
     private String resourceId;
 
     private String location;
@@ -74,6 +77,14 @@ public class IncidentTicket {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getTicketNumber() {
+        return ticketNumber;
+    }
+
+    public void setTicketNumber(String ticketNumber) {
+        this.ticketNumber = ticketNumber;
     }
 
     public String getResourceId() {

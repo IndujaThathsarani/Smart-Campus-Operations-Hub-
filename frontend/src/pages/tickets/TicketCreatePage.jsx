@@ -127,25 +127,29 @@ export default function TicketCreatePage() {
   const submitting = submitPhase === 'loading'
 
   return (
-    <section className="max-w-2xl">
-      <div className="mb-3">
+    <section className="mx-auto flex h-full w-full max-w-xl min-h-0 flex-col">
+      <div className="mb-2">
         <Link to="/tickets" className="text-sm text-gray-600 hover:text-slate-900 hover:underline">
           {'<-'} Back to tickets
         </Link>
       </div>
 
-      <h1 className="mb-2 text-2xl font-semibold text-slate-900">New incident ticket</h1>
+      <h1 className="mb-1.5 text-xl font-semibold text-slate-900">New incident ticket</h1>
 
       {submitPhase === 'error' && submitError && (
-        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800" role="alert">
+        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800" role="alert">
           {submitError}
         </p>
       )}
 
-      <form className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" onSubmit={handleSubmit} noValidate>
-        <h2 className="mb-5 text-[1.05rem] font-semibold text-gray-900">Report details</h2>
+      <form
+        className="min-h-0 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+        onSubmit={handleSubmit}
+        noValidate
+      >
+        <h2 className="mb-3 text-base font-semibold text-gray-900">Report details</h2>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="resourceId" className="text-sm font-medium text-gray-700">Resource (optional)</label>
             <select
@@ -162,9 +166,6 @@ export default function TicketCreatePage() {
                 </option>
               ))}
             </select>
-            <p className="m-0 text-xs text-gray-500">
-              Link this incident to a resource from Module A for traceability.
-            </p>
             {resourcesError && <p className="m-0 text-xs text-amber-700">{resourcesError}</p>}
           </div>
 
@@ -257,7 +258,7 @@ export default function TicketCreatePage() {
             <p className="m-0 text-xs text-gray-500">Provide at least email or phone.</p>
           </div>
 
-          <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-4 py-3">
+          <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-3 py-2.5">
             <label htmlFor="evidence" className="mb-1 block text-sm font-semibold text-gray-700">Evidence images</label>
             <p className="mb-3 text-xs text-gray-500">
               Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not required — use the file picker.
@@ -295,10 +296,10 @@ export default function TicketCreatePage() {
             )}
           </div>
 
-          <div className="mt-2 border-t border-gray-200 pt-4">
+          <div className="mt-1 border-t border-gray-200 pt-3">
             <button
               type="submit"
-              className="rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
               disabled={!canSubmit || submitting}
             >
               {submitting ? 'Submitting…' : 'Submit ticket'}

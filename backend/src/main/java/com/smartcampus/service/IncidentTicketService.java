@@ -5,10 +5,13 @@ import com.smartcampus.model.Resource;
 import com.smartcampus.model.TicketComment;
 import com.smartcampus.repository.IncidentTicketRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -34,6 +38,7 @@ import java.util.stream.Stream;
 public class IncidentTicketService {
 
     private static final int MAX_ATTACHMENTS = 3;
+    private static final String TICKET_COUNTER_COLLECTION = "ticket_counters";
 
     private final IncidentTicketRepository incidentTicketRepository;
 
@@ -116,7 +121,9 @@ public class IncidentTicketService {
         ticket.setContactEmail(email);
         ticket.setContactPhone(phone);
         ticket.setStatus(IncidentTicket.Status.OPEN);
-        ticket.setCreatedAt(Instant.now());
+        Instant now = Instant.now();
+        ticket.setCreatedAt(now);
+        ticket.setTicketNumber(generateTicketNumber(now));
         ticket.setAttachmentFileNames(new ArrayList<>());
 
         IncidentTicket saved = incidentTicketRepository.save(ticket);
@@ -156,7 +163,7 @@ public class IncidentTicketService {
         String priority = blankToNull(priorityRaw);
         String category = blankToNull(categoryRaw);
         if (status == null && priority == null && category == null) {
-            return incidentTicketRepository.findAllByOrderByCreatedAtDesc();
+            return ensureTicketNumbers(incidentTicketRepository.findAllByOrderByCreatedAtDesc());
         }
 
         Query query = new Query();
@@ -186,7 +193,7 @@ public class IncidentTicketService {
         }
 
         query.with(Sort.by(Sort.Direction.DESC, "createdAt"));
-        return mongoTemplate.find(query, IncidentTicket.class);
+        return ensureTicketNumbers(mongoTemplate.find(query, IncidentTicket.class));
     }
 
     public IncidentTicket updateStatus(String ticketId, String statusRaw, String rejectReasonRaw) {
@@ -377,5 +384,48 @@ public class IncidentTicketService {
             name = name.substring(name.length() - 120);
         }
         return name;
+    }
+
+    private String generateTicketNumber(Instant now) {
+        int year = now.atZone(ZoneOffset.UTC).getYear();
+        long seq = nextTicketSequence(year);
+        return String.format("INC-%d-%04d", year, seq);
+    }
+
+    private List<IncidentTicket> ensureTicketNumbers(List<IncidentTicket> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            return tickets;
+        }
+        boolean changed = false;
+        for (IncidentTicket ticket : tickets) {
+            if (blankToNull(ticket.getTicketNumber()) != null) {
+                continue;
+            }
+            Instant base = ticket.getCreatedAt() != null ? ticket.getCreatedAt() : Instant.now();
+            ticket.setTicketNumber(generateTicketNumber(base));
+            changed = true;
+        }
+        if (changed) {
+            incidentTicketRepository.saveAll(tickets);
+        }
+        return tickets;
+    }
+
+    private long nextTicketSequence(int year) {
+        String counterId = "incident_ticket_" + year;
+        Query query = new Query(Criteria.where("_id").is(counterId));
+        Update update = new Update().inc("seq", 1L);
+        FindAndModifyOptions options = FindAndModifyOptions.options().returnNew(true).upsert(true);
+        TicketCounter counter = mongoTemplate.findAndModify(query, update, options, TicketCounter.class, TICKET_COUNTER_COLLECTION);
+        if (counter == null || counter.seq <= 0) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not generate ticket number");
+        }
+        return counter.seq;
+    }
+
+    private static class TicketCounter {
+        @Id
+        private String id;
+        private long seq;
     }
 }
