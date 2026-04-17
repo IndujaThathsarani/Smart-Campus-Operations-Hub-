@@ -66,6 +66,8 @@ public class IncidentTicket {
     /** Stored filenames under upload dir (not full paths in JSON). */
     private List<String> attachmentFileNames = new ArrayList<>();
 
+    private List<TicketComment> comments = new ArrayList<>();
+
     public String getId() {
         return id;
     }
@@ -168,5 +170,13 @@ public class IncidentTicket {
 
     public void setAttachmentFileNames(List<String> attachmentFileNames) {
         this.attachmentFileNames = attachmentFileNames;
+    }
+
+    public List<TicketComment> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<TicketComment> comments) {
+        this.comments = comments;
     }
 }

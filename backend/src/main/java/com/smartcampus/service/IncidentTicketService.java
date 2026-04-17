@@ -1,6 +1,7 @@
 package com.smartcampus.service;
 
 import com.smartcampus.model.IncidentTicket;
+import com.smartcampus.model.TicketComment;
 import com.smartcampus.repository.IncidentTicketRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
@@ -25,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @Service
@@ -231,6 +233,86 @@ public class IncidentTicketService {
         }
         ticket.setAssignedTo(assigned);
         return incidentTicketRepository.save(ticket);
+    }
+
+    public IncidentTicket addComment(String ticketId, String bodyRaw, String authorRaw) {
+        IncidentTicket ticket = requireTicketById(ticketId);
+        String body = blankToNull(bodyRaw);
+        if (body == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment body is required");
+        }
+        if (body.length() > 2000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment must be at most 2000 characters");
+        }
+        String author = blankToNull(authorRaw);
+        if (author != null && author.length() > 80) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Author label must be at most 80 characters");
+        }
+        if (author == null) {
+            author = "ADMIN";
+        }
+        if (ticket.getComments() == null) {
+            ticket.setComments(new ArrayList<>());
+        }
+        TicketComment c = new TicketComment();
+        c.setId(UUID.randomUUID().toString());
+        c.setAuthor(author);
+        c.setBody(body);
+        c.setCreatedAt(Instant.now());
+        c.setHidden(false);
+        ticket.getComments().add(c);
+        return incidentTicketRepository.save(ticket);
+    }
+
+    public IncidentTicket setCommentHidden(String ticketId, String commentId, boolean hidden) {
+        IncidentTicket ticket = requireTicketById(ticketId);
+        TicketComment comment = requireComment(ticket, commentId);
+        comment.setHidden(hidden);
+        return incidentTicketRepository.save(ticket);
+    }
+
+    public IncidentTicket deleteComment(String ticketId, String commentId) {
+        IncidentTicket ticket = requireTicketById(ticketId);
+        String cid = blankToNull(commentId);
+        if (cid == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment id is required");
+        }
+        List<TicketComment> list = ticket.getComments();
+        if (list == null || list.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
+        }
+        boolean removed = list.removeIf((c) -> cid.equals(c.getId()));
+        if (!removed) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
+        }
+        return incidentTicketRepository.save(ticket);
+    }
+
+    private IncidentTicket requireTicketById(String ticketId) {
+        String id = blankToNull(ticketId);
+        if (id == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticket id is required");
+        }
+        return incidentTicketRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found")
+        );
+    }
+
+    private static TicketComment requireComment(IncidentTicket ticket, String commentId) {
+        String cid = blankToNull(commentId);
+        if (cid == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment id is required");
+        }
+        List<TicketComment> list = ticket.getComments();
+        if (list == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
+        }
+        for (TicketComment c : list) {
+            if (cid.equals(c.getId())) {
+                return c;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
     }
 
     public void deleteById(String ticketId) {
