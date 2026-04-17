@@ -5,11 +5,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "resources")
 public class Resource {
-
-import java.time.LocalDateTime;
-
-@Document(collection = "resources")
-public class Resource {
     @Id
     private String id;
     private String name;
