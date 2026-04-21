@@ -1,3 +1,6 @@
+@import "tailwindcss";
+
+/* Your existing CSS below */
 *,
 *::before,
 *::after {

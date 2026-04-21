@@ -6,7 +6,7 @@ const BookingsList = () => {
     const [statistics, setStatistics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
-    const [showStats, setShowStats] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         loadBookings();
@@ -71,126 +71,169 @@ const BookingsList = () => {
         }
     };
 
-    const filteredBookings = filter === 'ALL' 
-        ? bookings 
-        : bookings.filter(b => b.status === filter);
+    const getStatusIcon = (status) => {
+        switch(status) {
+            case 'PENDING': return '⏳';
+            case 'APPROVED': return '✅';
+            case 'REJECTED': return '❌';
+            case 'CANCELLED': return '🚫';
+            default: return '📋';
+        }
+    };
+
+    const filteredBookings = bookings
+        .filter(b => filter === 'ALL' || b.status === filter)
+        .filter(b => 
+            b.resourceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            b.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            b.purpose?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+    // Stat Card Component
+    const StatCard = ({ title, value, icon, color, bgColor }) => (
+        <div className={`bg-white rounded-xl shadow-sm p-5 border-l-4 ${color} hover:shadow-md transition-shadow`}>
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-gray-500 text-sm font-medium">{title}</p>
+                    <p className="text-2xl font-bold text-gray-800 mt-1">{value || 0}</p>
+                </div>
+                <div className={`w-12 h-12 ${bgColor} rounded-full flex items-center justify-center text-2xl`}>
+                    {icon}
+                </div>
+            </div>
+        </div>
+    );
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <div className="text-gray-500">Loading bookings...</div>
+            <div className="flex justify-center items-center h-96">
+                <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-500">Loading bookings...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">📋 Booking Management</h1>
-                <button
-                    onClick={() => setShowStats(!showStats)}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                    {showStats ? 'Hide Statistics' : 'Show Statistics'}
-                </button>
-            </div>
-
-            {/* Statistics Section */}
-            {showStats && statistics && (
-                <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                    <h2 className="text-xl font-semibold mb-4">📊 Booking Statistics</h2>
-                    <div className="grid grid-cols-5 gap-4">
-                        <div className="text-center p-3 bg-blue-50 rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">{statistics.total}</div>
-                            <div className="text-sm text-gray-600">Total</div>
-                        </div>
-                        <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                            <div className="text-2xl font-bold text-yellow-600">{statistics.pending}</div>
-                            <div className="text-sm text-gray-600">Pending</div>
-                        </div>
-                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">{statistics.approved}</div>
-                            <div className="text-sm text-gray-600">Approved</div>
-                        </div>
-                        <div className="text-center p-3 bg-red-50 rounded-lg">
-                            <div className="text-2xl font-bold text-red-600">{statistics.rejected}</div>
-                            <div className="text-sm text-gray-600">Rejected</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                            <div className="text-2xl font-bold text-gray-600">{statistics.cancelled}</div>
-                            <div className="text-sm text-gray-600">Cancelled</div>
-                        </div>
-                    </div>
+        <div>
+            {/* Statistics Cards */}
+            {statistics && (
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                    <StatCard title="Total Bookings" value={statistics.total} icon="📊" color="border-blue-500" bgColor="bg-blue-50" />
+                    <StatCard title="Pending" value={statistics.pending} icon="⏳" color="border-yellow-500" bgColor="bg-yellow-50" />
+                    <StatCard title="Approved" value={statistics.approved} icon="✅" color="border-green-500" bgColor="bg-green-50" />
+                    <StatCard title="Rejected" value={statistics.rejected} icon="❌" color="border-red-500" bgColor="bg-red-50" />
+                    <StatCard title="Cancelled" value={statistics.cancelled} icon="🚫" color="border-gray-500" bgColor="bg-gray-50" />
                 </div>
             )}
 
-            {/* Filter Tabs */}
-            <div className="flex gap-2 mb-4 border-b">
-                {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
-                    <button
-                        key={status}
-                        onClick={() => setFilter(status)}
-                        className={`px-4 py-2 -mb-px transition-colors ${
-                            filter === status 
-                                ? 'border-b-2 border-blue-500 text-blue-600 font-medium'
-                                : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                        {status}
-                    </button>
-                ))}
+            {/* Search and Filter Bar */}
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 relative">
+                        <input
+                            type="text"
+                            placeholder="Search by resource ID, user, or purpose..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
+                            <button
+                                key={status}
+                                onClick={() => setFilter(status)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                                    filter === status 
+                                        ? 'bg-blue-500 text-white shadow-md'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                {status}
+                                {status !== 'ALL' && statistics && (
+                                    <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
+                                        filter === status ? 'bg-white text-blue-500' : 'bg-gray-300 text-gray-600'
+                                    }`}>
+                                        {status === 'PENDING' && statistics.pending}
+                                        {status === 'APPROVED' && statistics.approved}
+                                        {status === 'REJECTED' && statistics.rejected}
+                                        {status === 'CANCELLED' && statistics.cancelled}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Bookings Table */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 border-b">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resource ID</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Purpose</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Attendees</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredBookings.map((booking) => (
-                                <tr key={booking.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{booking.resourceId}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{booking.userName}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(booking.startTime).toLocaleString()}
+                        <tbody className="divide-y divide-gray-200">
+                            {filteredBookings.map((booking, index) => (
+                                <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="font-medium text-gray-900">{booking.resourceId}</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(booking.endTime).toLocaleString()}
+                                    <td className="px-6 py-4 text-sm text-gray-600">{booking.userName}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        {new Date(booking.startTime).toLocaleDateString()}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{booking.purpose}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{booking.expectedAttendees}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(booking.status)}`}>
-                                            {booking.status}
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        {new Date(booking.startTime).toLocaleTimeString()} - {new Date(booking.endTime).toLocaleTimeString()}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{booking.purpose}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">{booking.expectedAttendees}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(booking.status)}`}>
+                                            {getStatusIcon(booking.status)} {booking.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <td className="px-6 py-4">
                                         {booking.status === 'PENDING' && (
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => handleApprove(booking.id)}
-                                                    className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition-colors"
+                                                    className="bg-green-500 text-white px-3 py-1 rounded-md text-xs hover:bg-green-600 transition-colors"
                                                 >
-                                                    ✅ Approve
+                                                    Approve
                                                 </button>
                                                 <button
                                                     onClick={() => handleReject(booking.id)}
-                                                    className="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition-colors"
+                                                    className="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors"
                                                 >
-                                                    ❌ Reject
+                                                    Reject
                                                 </button>
                                             </div>
+                                        )}
+                                        {booking.status === 'APPROVED' && (
+                                            <span className="text-green-600 text-sm font-medium">✓ Approved</span>
+                                        )}
+                                        {booking.status === 'REJECTED' && (
+                                            <span className="text-red-600 text-sm font-medium">✗ Rejected</span>
+                                        )}
+                                        {booking.status === 'CANCELLED' && (
+                                            <span className="text-gray-500 text-sm">Cancelled</span>
                                         )}
                                     </td>
                                 </tr>
@@ -199,10 +242,14 @@ const BookingsList = () => {
                     </table>
                 </div>
                 {filteredBookings.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                        No bookings found
+                    <div className="text-center py-12">
+                        <div className="text-5xl mb-3">📭</div>
+                        <p className="text-gray-500">No bookings found</p>
                     </div>
                 )}
+                <div className="bg-gray-50 px-6 py-3 border-t text-sm text-gray-500">
+                    Showing {filteredBookings.length} of {bookings.length} bookings
+                </div>
             </div>
         </div>
     );
