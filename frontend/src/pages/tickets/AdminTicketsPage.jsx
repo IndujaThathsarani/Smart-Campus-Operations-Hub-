@@ -3,12 +3,12 @@ import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOpti
 import { apiDelete, apiGet, apiSend } from '../../services/apiClient'
 
 const ADMIN_TABS = [
-  { id: 'view_all', label: '1. View all tickets' },
-  { id: 'change_status', label: '2. Change ticket status' },
-  { id: 'reject_reason', label: '3. Reject with reason' },
-  { id: 'assign_staff', label: '4. Assign technician/staff' },
-  { id: 'filters', label: '5. Filters' },
-  { id: 'comment_moderation', label: '6. Comment moderation' },
+  { id: 'view_all', label: 'View all tickets' },
+  { id: 'change_status', label: 'Change ticket status' },
+  { id: 'reject_reason', label: 'Reject with reason' },
+  { id: 'assign_staff', label: 'Assign technician/staff' },
+  { id: 'filters', label: 'Filters' },
+  { id: 'comment_moderation', label: 'Comment moderation' },
 ]
 
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
@@ -53,12 +53,35 @@ function priorityClasses(priority) {
   }
 }
 
+function statusClasses(status) {
+  switch ((status || '').toUpperCase()) {
+    case 'OPEN':
+      return 'bg-blue-100 text-blue-800'
+    case 'IN_PROGRESS':
+      return 'bg-amber-100 text-amber-800'
+    case 'RESOLVED':
+      return 'bg-emerald-100 text-emerald-800'
+    case 'CLOSED':
+      return 'bg-slate-200 text-slate-800'
+    case 'REJECTED':
+      return 'bg-rose-100 text-rose-800'
+    default:
+      return 'bg-slate-100 text-slate-700'
+  }
+}
+
 function StatusPill({ status }) {
   return (
-    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+    <span
+      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusClasses(status)}`}
+    >
       {formatEnum(status)}
     </span>
   )
+}
+
+function displayTicketId(ticket) {
+  return ticket?.ticketNumber || ticket?.id || '—'
 }
 
 export default function AdminTicketsPage() {
@@ -189,7 +212,7 @@ export default function AdminTicketsPage() {
             rejectReason: draft.status === 'REJECTED' ? draft.rejectReason.trim() : null,
           },
         })
-        setStatusActionSuccess(`Status updated for ticket ${ticket.id}.`)
+        setStatusActionSuccess(`Status updated for ticket ${displayTicketId(ticket)}.`)
         await refreshTickets()
       } catch (e) {
         setStatusActionError(e?.body?.message || e?.message || 'Could not update ticket status.')
@@ -223,7 +246,7 @@ export default function AdminTicketsPage() {
             rejectReason: reason,
           },
         })
-        setRejectSuccess(`Ticket ${ticket.id} rejected successfully.`)
+        setRejectSuccess(`Ticket ${displayTicketId(ticket)} rejected successfully.`)
         setRejectDrafts((prev) => ({ ...prev, [ticket.id]: '' }))
         await refreshTickets()
       } catch (e) {
@@ -258,7 +281,7 @@ export default function AdminTicketsPage() {
           method: 'PATCH',
           body: { assignedTo: value || null },
         })
-        setAssignSuccess(`Assignment updated for ticket ${ticket.id}.`)
+        setAssignSuccess(`Assignment updated for ticket ${displayTicketId(ticket)}.`)
         setAssignDrafts((prev) => ({ ...prev, [ticket.id]: value }))
         await refreshTickets()
       } catch (e) {
@@ -273,7 +296,7 @@ export default function AdminTicketsPage() {
   const handleDeleteTicket = useCallback(
     async (ticket) => {
       const ok = window.confirm(
-        `Delete ticket ${ticket.id} permanently? This cannot be undone.`,
+        `Delete ticket ${displayTicketId(ticket)} permanently? This cannot be undone.`,
       )
       if (!ok) return
 
@@ -300,7 +323,7 @@ export default function AdminTicketsPage() {
           delete next[ticket.id]
           return next
         })
-        setStatusActionSuccess(`Ticket ${ticket.id} deleted.`)
+        setStatusActionSuccess(`Ticket ${displayTicketId(ticket)} deleted.`)
         setRejectSuccess(null)
         await refreshTickets()
       } catch (e) {
@@ -390,7 +413,7 @@ export default function AdminTicketsPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full shrink-0 rounded-md px-3 py-2.5 text-left text-sm transition md:flex md:min-h-0 md:flex-1 md:items-center md:justify-start md:py-0 md:leading-snug ${
+                className={`w-full shrink-0 rounded-md px-3 py-2.5 text-center text-base font-semibold transition md:flex md:min-h-0 md:flex-1 md:items-center md:justify-center md:py-0 md:leading-snug ${
                   isActive
                     ? 'bg-white/[0.14] text-white'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
@@ -450,8 +473,8 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                  <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                  <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
@@ -482,9 +505,9 @@ export default function AdminTicketsPage() {
                     </thead>
                     <tbody>
                       {tickets.map((ticket) => (
-                        <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60">
-                          <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
-                            {ticket.id}
+                        <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
+                          <td className="border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
+                            {displayTicketId(ticket)}
                           </td>
                           <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
                             {ticket.location || '—'}
@@ -572,8 +595,8 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                  <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                  <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
@@ -601,9 +624,9 @@ export default function AdminTicketsPage() {
                         const draft = getDraft(ticket)
                         const isSaving = savingId === ticket.id
                         return (
-                          <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60">
-                            <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
-                              {ticket.id}
+                          <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
+                            <td className="border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
+                              {displayTicketId(ticket)}
                             </td>
                             <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
                               {ticket.location || '—'}
@@ -638,7 +661,7 @@ export default function AdminTicketsPage() {
                                   type="button"
                                   onClick={() => handleUpdateStatus(ticket)}
                                   disabled={isSaving || deletingId === ticket.id}
-                                  className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {isSaving ? 'Saving...' : 'Update'}
                                 </button>
@@ -713,8 +736,8 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.filter((t) => t.status !== 'REJECTED').length > 0 && (
-                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                  <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                  <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
@@ -746,9 +769,9 @@ export default function AdminTicketsPage() {
                         .map((ticket) => {
                           const isSaving = rejectSavingId === ticket.id
                           return (
-                            <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60">
-                              <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
-                                {ticket.id}
+                            <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
+                              <td className="border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
+                                {displayTicketId(ticket)}
                               </td>
                               <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
                                 {ticket.location || '—'}
@@ -851,8 +874,8 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                  <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                  <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
@@ -883,9 +906,9 @@ export default function AdminTicketsPage() {
                         const draft = getAssignDraft(ticket)
                         const isSaving = assignSavingId === ticket.id
                         return (
-                          <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60">
-                            <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
-                              {ticket.id}
+                          <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
+                            <td className="border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
+                              {displayTicketId(ticket)}
                             </td>
                             <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
                               {ticket.location || '—'}
@@ -920,7 +943,7 @@ export default function AdminTicketsPage() {
                                   type="button"
                                   onClick={() => handleSaveAssignment(ticket)}
                                   disabled={isSaving || deletingId === ticket.id}
-                                  className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {isSaving ? 'Saving...' : 'Save'}
                                 </button>
@@ -1045,8 +1068,8 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                  <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                  <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
                         <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
@@ -1077,9 +1100,9 @@ export default function AdminTicketsPage() {
                     </thead>
                     <tbody>
                       {tickets.map((ticket) => (
-                        <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60">
-                          <td className="border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
-                            {ticket.id}
+                        <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
+                          <td className="border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
+                            {displayTicketId(ticket)}
                           </td>
                           <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
                             {ticket.location || '—'}
@@ -1157,8 +1180,8 @@ export default function AdminTicketsPage() {
               {!loading && !error && tickets.length > 0 && (
               <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:flex-row">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:max-w-[50%]">
-                  <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                    <table className="min-w-full border-separate border-spacing-0 text-sm">
+                  <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                    <table className="min-w-full border-separate border-spacing-0 text-base">
                       <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                         <tr>
                           <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
@@ -1183,10 +1206,10 @@ export default function AdminTicketsPage() {
                           return (
                             <tr
                               key={ticket.id}
-                              className={`odd:bg-white even:bg-slate-50/60 ${isSel ? 'bg-slate-100' : ''}`}
+                              className={`odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)] ${isSel ? 'bg-slate-100' : ''}`}
                             >
-                              <td className="max-w-[8rem] border-b border-gray-100 px-3 py-2 font-mono text-xs text-slate-600">
-                                {ticket.id}
+                              <td className="max-w-[8rem] border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
+                                {displayTicketId(ticket)}
                               </td>
                               <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
                                 {ticket.location || '—'}
@@ -1221,7 +1244,7 @@ export default function AdminTicketsPage() {
                   )}
                   {selectedTicket && (
                     <>
-                      <p className="mb-2 shrink-0 font-mono text-xs text-slate-500">{selectedTicket.id}</p>
+                      <p className="mb-2 shrink-0 font-mono text-sm text-slate-500">{displayTicketId(selectedTicket)}</p>
                       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                         {(selectedTicket.comments || []).length === 0 && (
                           <p className="text-sm text-gray-500">No comments yet.</p>

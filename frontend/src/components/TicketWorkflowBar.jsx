@@ -8,17 +8,17 @@
 export default function TicketWorkflowBar({ status, rejectReason }) {
   if (status === 'REJECTED') {
     return (
-      <div className="mt-1" aria-label="Ticket status">
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
-          <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">
+      <div className="mt-0" aria-label="Ticket status">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <span className="inline-block rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-800">
             Rejected
           </span>
           {rejectReason ? (
-            <p className="mt-1.5 text-xs leading-relaxed text-red-900">
+            <p className="mt-2 text-sm leading-relaxed text-red-900">
               <strong>Reason:</strong> {rejectReason}
             </p>
           ) : (
-            <p className="mt-1.5 text-xs italic leading-relaxed text-gray-500">
+            <p className="mt-2 text-sm italic leading-relaxed text-gray-600">
               Admin rejection reason will appear here when set.
             </p>
           )}
@@ -31,16 +31,16 @@ export default function TicketWorkflowBar({ status, rejectReason }) {
   const activeIndex = idx >= 0 ? idx : 0
 
   return (
-    <div className="mt-2" aria-label="Ticket workflow">
-      <ol className="m-0 flex list-none flex-wrap items-start gap-y-1 p-0">
+    <div className="mt-0" aria-label="Ticket workflow">
+      <ol className="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0">
         {MAIN_STEPS.map((step, i) => {
           const isDone = i < activeIndex
           const isCurrent = i === activeIndex
           return (
-            <li key={step.key} className="flex items-center gap-1.5 text-xs">
+            <li key={step.key} className="flex items-center gap-2 text-sm sm:text-base">
               <span
                 aria-hidden
-                className={`h-2 w-2 shrink-0 rounded-full ${
+                className={`h-2.5 w-2.5 shrink-0 rounded-full sm:h-3 sm:w-3 ${
                   isCurrent
                     ? 'bg-slate-900 ring-2 ring-slate-300'
                     : isDone
@@ -53,13 +53,15 @@ export default function TicketWorkflowBar({ status, rejectReason }) {
                   isCurrent
                     ? 'font-semibold text-slate-900'
                     : isDone
-                      ? 'text-emerald-700'
+                      ? 'font-medium text-emerald-700'
                       : 'text-gray-400'
                 }`}
               >
                 {step.label}
               </span>
-              {i < MAIN_STEPS.length - 1 && <span className="mx-1 text-[10px] text-gray-300">{'->'}</span>}
+              {i < MAIN_STEPS.length - 1 && (
+                <span className="mx-1 text-xs text-gray-300 sm:text-sm">{'->'}</span>
+              )}
             </li>
           )
         })}
@@ -67,6 +69,3 @@ export default function TicketWorkflowBar({ status, rejectReason }) {
     </div>
   )
 }
-
-
-

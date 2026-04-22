@@ -44,6 +44,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(incidentTicketService.findAllFiltered(status, priority, category));
     }
 
+    // Create incident ticket with optional resource linking (receives resourceId from frontend form)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<IncidentTicket> create(
             @RequestParam(value = "resourceId", required = false) String resourceId,
