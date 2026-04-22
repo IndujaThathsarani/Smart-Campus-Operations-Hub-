@@ -52,6 +52,7 @@ public class IncidentTicketService {
         this.mongoTemplate = mongoTemplate;
     }
 
+    // Create incident ticket with attachments and optional resource linking (validates and sets resourceId)
     public IncidentTicket createWithAttachments(
             String resourceIdRaw,
             String location,

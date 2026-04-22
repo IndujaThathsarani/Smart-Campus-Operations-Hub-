@@ -4,7 +4,7 @@ import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOpti
 import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
 
-const MAX_ATTACHMENTS = 3
+const MAX_ATTACHMENTS = 3 // Maximum number of photo attachments allowed (e.g., for incident evidence)
 
 function formatSubmitError(err) {
   const msg = err?.body?.message
@@ -29,6 +29,8 @@ export default function TicketCreatePage() {
   const [submitPhase, setSubmitPhase] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
 
+  // Fetch resources for optional linking in incident tickets (populates resource dropdown)
+  // Array to store attached photo files and their preview URLs
   const [attachments, setAttachments] = useState([])
   const attachmentsRef = useRef(attachments)
   const { resources, loading: resourcesLoading, loadError: resourcesError } = useResources()
@@ -43,6 +45,7 @@ export default function TicketCreatePage() {
     }
   }, [])
 
+  // Function to add selected image files to the attachments array (up to MAX_ATTACHMENTS)
   function addFiles(fileList) {
     const incoming = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'))
     if (incoming.length === 0) return
@@ -57,6 +60,7 @@ export default function TicketCreatePage() {
     })
   }
 
+  // Function to remove a specific attachment by index and clean up its preview URL
   function removeAttachment(index) {
     setAttachments((prev) => {
       const copy = [...prev]
@@ -66,6 +70,7 @@ export default function TicketCreatePage() {
     })
   }
 
+  // Handler for file input change: adds selected files and resets input for re-selection
   function handleFileChange(e) {
     addFiles(e.target.files)
     e.target.value = ''
@@ -85,6 +90,7 @@ export default function TicketCreatePage() {
 
     const formData = new FormData()
     formData.append('location', location.trim())
+    // Append selected resource ID if chosen (links ticket to resource in backend)
     if (resourceId) formData.append('resourceId', resourceId)
     formData.append('category', category)
     formData.append('priority', priority)
@@ -94,6 +100,7 @@ export default function TicketCreatePage() {
     if (email) formData.append('contactEmail', email)
     if (phone) formData.append('contactPhone', phone)
 
+    // Append all attached photo files to the form data for upload
     attachments.forEach((a) => {
       formData.append('files', a.file)
     })
@@ -264,6 +271,7 @@ export default function TicketCreatePage() {
               Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not required — use the file picker.
             </p>
             <div>
+              {/* File input for selecting photo attachments */}
               <input
                 id="evidence"
                 type="file"
@@ -276,6 +284,7 @@ export default function TicketCreatePage() {
             </div>
             <p className="mt-2 text-xs text-slate-500">{attachments.length} / {MAX_ATTACHMENTS} attached</p>
 
+            {/* Grid to display previews of attached photos with remove buttons */}
             {attachments.length > 0 && (
               <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2.5">
                 {attachments.map((a, index) => (
