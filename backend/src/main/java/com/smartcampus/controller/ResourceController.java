@@ -23,6 +23,7 @@ public class ResourceController {
 
     /**
      * Get all resources or search by filters
+     * Used by frontend to populate resource dropdown in incident ticket forms
      */
     @GetMapping
     public ResponseEntity<List<Resource>> getResources(
