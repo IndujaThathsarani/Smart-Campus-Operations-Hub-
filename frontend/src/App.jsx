@@ -1,6 +1,7 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
 import ProtectedRoute from './routes/ProtectedRoute'
+import HomePage from './pages/HomePage'
 import Catalogue from './pages/resources/Catalogue'
 import AdminCatalogue from './pages/resources/AdminCatalogue'
 import BookingsPage from './pages/bookings/BookingsPage'
@@ -15,7 +16,7 @@ export default function App() {
       <Routes>
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/" element={<Navigate to="/resources" replace />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="resources" element={<Catalogue />} />
             <Route path="admin/catalogue" element={<AdminCatalogue />} />
             <Route path="bookings" element={<BookingsPage />} />

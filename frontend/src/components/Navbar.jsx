@@ -10,6 +10,9 @@ export default function Navbar() {
       <div className="nav-inner">
         <span className="nav-brand">Smart Campus Hub</span>
         <nav className="nav-links" aria-label="Main">
+          <NavLink to="/" end className={linkClass}>
+            HOME
+          </NavLink>
           <NavLink to="/resources" className={linkClass}>
             Resources
           </NavLink>
