@@ -22,8 +22,12 @@ import {
 import "swiper/css";
 import "swiper/css/pagination";
 
-const HERO_IMAGE_URL =
-  "https://static.sliit.lk/wp-content/uploads/2018/03/SLIIT-malabe.jpg";
+const HERO_IMAGES = [
+  "https://images.unsplash.com/photo-1562774053-701939374585?w=1920&auto=format",
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&auto=format",
+  "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1920&auto=format",
+  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1920&auto=format",
+];
 const CTA_BG_URL =
   "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&auto=format";
 
@@ -171,6 +175,7 @@ const HomePage = () => {
   const [typedTitle, setTypedTitle] = useState("");
   const [countdown, setCountdown] = useState(48 * 60 * 60);
   const [loadedImages, setLoadedImages] = useState({});
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
 
   useEffect(() => {
     AOS.init({ duration: 700, once: true, easing: "ease-out-cubic" });
@@ -194,6 +199,13 @@ const HomePage = () => {
       setCountdown((previous) => (previous > 0 ? previous - 1 : 0));
     }, 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const heroTimer = window.setInterval(() => {
+      setActiveHeroIndex((previous) => (previous + 1) % HERO_IMAGES.length);
+    }, 5000);
+    return () => window.clearInterval(heroTimer);
   }, []);
 
   const countdownLabel = useMemo(() => {
@@ -221,14 +233,19 @@ const HomePage = () => {
         marginBottom: "-1.5rem",
       }}
     >
-      <section
-        className="relative isolate min-h-screen overflow-hidden"
-        style={{
-          backgroundImage: `url(${HERO_IMAGE_URL})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
+      <section className="relative isolate min-h-screen overflow-hidden">
+        <div className="absolute inset-0">
+          {HERO_IMAGES.map((image, index) => (
+            <div
+              key={image}
+              className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+              style={{
+                backgroundImage: `url(${image})`,
+                opacity: activeHeroIndex === index ? 1 : 0,
+              }}
+            />
+          ))}
+        </div>
         <div className="absolute inset-0 bg-slate-950/22" />
         <div className="absolute inset-0">
           {[...Array(8)].map((_, i) => (
