@@ -327,23 +327,19 @@ export default function AdminCatalogue() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] bg-slate-950 px-4 py-5 text-slate-100 shadow-2xl shadow-slate-950/20 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute inset-0 opacity-100">
-        <div className="absolute -right-16 top-0 h-64 w-64 rounded-full bg-cyan-500/20 blur-3xl" />
-        <div className="absolute -left-12 bottom-0 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
-      </div>
+    <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white px-4 py-5 text-slate-900 shadow-xl shadow-slate-200/70 sm:px-6 lg:px-8">
 
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <header className="rounded-[24px] border border-white/10 bg-white/8 p-5 shadow-lg shadow-black/10 backdrop-blur-xl sm:p-6">
+        <header className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-200/85">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-700">
                 Operations Console
               </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
                 Resource Admin Dashboard
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
                 Manage smart campus facilities, statuses, and availability from one polished control panel.
               </p>
             </div>
@@ -366,24 +362,24 @@ export default function AdminCatalogue() {
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-3">
-          <article className="rounded-[22px] border border-white/10 bg-white/8 p-5 shadow-lg shadow-black/10 backdrop-blur-xl">
-            <p className="text-sm text-slate-300">Total Resources</p>
-            <strong className="mt-2 block text-3xl font-semibold text-white">{stats.total}</strong>
+          <article className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 shadow-sm">
+            <p className="text-sm text-slate-600">Total Resources</p>
+            <strong className="mt-2 block text-3xl font-semibold text-slate-900">{stats.total}</strong>
           </article>
-          <article className="rounded-[22px] border border-emerald-400/20 bg-emerald-500/10 p-5 shadow-lg shadow-black/10 backdrop-blur-xl">
-            <p className="text-sm text-emerald-100">Active</p>
-            <strong className="mt-2 block text-3xl font-semibold text-emerald-50">{stats.active}</strong>
+          <article className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+            <p className="text-sm text-emerald-700">Active</p>
+            <strong className="mt-2 block text-3xl font-semibold text-emerald-800">{stats.active}</strong>
           </article>
-          <article className="rounded-[22px] border border-rose-400/20 bg-rose-500/10 p-5 shadow-lg shadow-black/10 backdrop-blur-xl">
-            <p className="text-sm text-rose-100">Out of Service</p>
-            <strong className="mt-2 block text-3xl font-semibold text-rose-50">{stats.outOfService}</strong>
+          <article className="rounded-[22px] border border-rose-200 bg-rose-50 p-5 shadow-sm">
+            <p className="text-sm text-rose-700">Out of Service</p>
+            <strong className="mt-2 block text-3xl font-semibold text-rose-800">{stats.outOfService}</strong>
           </article>
         </div>
 
-        <div className="rounded-[24px] border border-white/10 bg-white/8 p-4 shadow-lg shadow-black/10 backdrop-blur-xl sm:p-5">
+        <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2">
-              <label htmlFor="filter-type" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+              <label htmlFor="filter-type" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
                 Type
               </label>
               <select
@@ -391,7 +387,7 @@ export default function AdminCatalogue() {
                 value={filters.type}
                 onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
                 disabled={loading}
-                className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">All Types</option>
                 {RESOURCE_TYPES.map((type) => (
@@ -403,7 +399,7 @@ export default function AdminCatalogue() {
             </div>
 
             <div className="grid gap-2">
-              <label htmlFor="filter-location" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+              <label htmlFor="filter-location" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
                 Location
               </label>
               <input
@@ -413,12 +409,12 @@ export default function AdminCatalogue() {
                 value={filters.location}
                 onChange={(e) => setFilters((f) => ({ ...f, location: e.target.value }))}
                 disabled={loading}
-                className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               />
             </div>
 
             <div className="grid gap-2">
-              <label htmlFor="filter-status" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+              <label htmlFor="filter-status" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
                 Status
               </label>
               <select
@@ -426,7 +422,7 @@ export default function AdminCatalogue() {
                 value={filters.status}
                 onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
                 disabled={loading}
-                className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">All Status</option>
                 <option value="ACTIVE">Active</option>
@@ -668,7 +664,7 @@ export default function AdminCatalogue() {
           </form>
         ) : null}
 
-        <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-2xl shadow-slate-950/10">
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-lg shadow-slate-200/70">
           <div className="overflow-x-auto">
             <table className="min-w-[56rem] w-full border-collapse text-left">
               <thead className="bg-slate-950 text-xs uppercase tracking-[0.18em] text-slate-300">
