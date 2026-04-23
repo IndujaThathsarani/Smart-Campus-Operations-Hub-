@@ -7,6 +7,7 @@ const BookingsList = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
+    const [popup, setPopup] = useState({ open: false, type: 'success', message: '' });
 
     useEffect(() => {
         loadBookings();
@@ -33,17 +34,26 @@ const BookingsList = () => {
         }
     };
 
+    const showPopup = (type, message) => {
+        setPopup({ open: true, type, message });
+    };
+
+    useEffect(() => {
+        if (!popup.open) return;
+        const timer = setTimeout(() => {
+            setPopup(prev => ({ ...prev, open: false }));
+        }, 2400);
+        return () => clearTimeout(timer);
+    }, [popup.open]);
+
     const handleApprove = async (id) => {
-        const reason = prompt('Enter approval reason:');
-        if (reason !== null) {
-            try {
-                await approveBooking(id, reason || 'Approved by admin');
-                loadBookings();
-                loadStatistics();
-                alert('✅ Booking approved successfully!');
-            } catch (error) {
-                alert('❌ Failed to approve booking');
-            }
+        try {
+            await approveBooking(id, 'Approved by admin');
+            loadBookings();
+            loadStatistics();
+            showPopup('success', 'Booking approved successfully.');
+        } catch (error) {
+            showPopup('error', 'Failed to approve booking.');
         }
     };
 
@@ -54,9 +64,9 @@ const BookingsList = () => {
                 await rejectBooking(id, reason || 'Rejected by admin');
                 loadBookings();
                 loadStatistics();
-                alert('✅ Booking rejected successfully!');
+                showPopup('success', 'Booking rejected successfully.');
             } catch (error) {
-                alert('❌ Failed to reject booking');
+                showPopup('error', 'Failed to reject booking.');
             }
         }
     };
@@ -117,6 +127,20 @@ const BookingsList = () => {
 
     return (
         <div>
+            {popup.open && (
+                <div className="fixed top-4 right-4 z-50">
+                    <div
+                        className={`min-w-64 max-w-md rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
+                            popup.type === 'success'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-red-600 text-white'
+                        }`}
+                    >
+                        {popup.message}
+                    </div>
+                </div>
+            )}
+
             {/* Statistics Cards */}
             {statistics && (
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
