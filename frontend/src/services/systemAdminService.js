@@ -1,25 +1,23 @@
-import apiClient from "./apiClient";
+import { apiGet, apiSend } from "./apiClient";
 
 export const getSystemUsers = async () => {
-  const response = await apiClient.get("/system-admin/users");
-  return response.data;
+  return apiGet("/api/system-admin/users");
 };
 
 export const getSystemStats = async () => {
-  const response = await apiClient.get("/system-admin/stats");
-  return response.data;
+  return apiGet("/api/system-admin/stats");
 };
 
 export const updateUserRoles = async (userId, roles) => {
-  const response = await apiClient.patch(`/system-admin/users/${userId}/roles`, {
-    roles,
+  return apiSend(`/api/system-admin/users/${userId}/roles`, {
+    method: "PATCH",
+    body: { roles },
   });
-  return response.data;
 };
 
 export const updateUserStatus = async (userId, active) => {
-  const response = await apiClient.patch(`/system-admin/users/${userId}/status`, {
-    active,
+  return apiSend(`/api/system-admin/users/${userId}/status`, {
+    method: "PATCH",
+    body: { active },
   });
-  return response.data;
 };
