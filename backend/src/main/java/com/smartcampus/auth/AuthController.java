@@ -1,30 +1,48 @@
 package com.smartcampus.auth;
 
+import com.smartcampus.dto.AuthUserResponse;
+import com.smartcampus.model.User;
+import com.smartcampus.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private final UserRepository userRepository;
+
+    public AuthController(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
     @GetMapping("/me")
-    public Map<String, Object> getCurrentUser(Authentication authentication) {
+    public AuthUserResponse getCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return Map.of("authenticated", false);
+            return new AuthUserResponse(false);
         }
 
-        OAuth2User user = (OAuth2User) authentication.getPrincipal();
+        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+        String email = oAuth2User.getAttribute("email");
 
-        return Map.of(
-                "authenticated", true,
-                "name", user.getAttribute("name"),
-                "email", user.getAttribute("email"),
-                "picture", user.getAttribute("picture")
+        User user = userRepository.findByEmail(email)
+                .orElse(null);
+
+        if (user == null) {
+            return new AuthUserResponse(false);
+        }
+
+        return new AuthUserResponse(
+                true,
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getProfilePicture(),
+                user.getRoles(),
+                user.isActive()
         );
     }
 }
