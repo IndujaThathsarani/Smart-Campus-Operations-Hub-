@@ -1,5 +1,6 @@
 package com.smartcampus.config;
 
+import com.smartcampus.auth.CustomOAuth2UserService;
 import com.smartcampus.auth.OAuth2LoginSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,9 +16,14 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
-    public SecurityConfig(OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler) {
+    public SecurityConfig(
+            OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler,
+            CustomOAuth2UserService customOAuth2UserService
+    ) {
         this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
+        this.customOAuth2UserService = customOAuth2UserService;
     }
 
     @Bean
@@ -32,9 +38,16 @@ public class SecurityConfig {
                                 "/oauth2/**",
                                 "/login/**"
                         ).permitAll()
+
+                        .requestMatchers("/api/system-admin/**")
+                        .hasRole("SYSTEM_ADMIN")
+
                         .anyRequest().permitAll()
                 )
                 .oauth2Login(oauth -> oauth
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
                         .successHandler(oAuth2LoginSuccessHandler)
                 )
                 .logout(logout -> logout
