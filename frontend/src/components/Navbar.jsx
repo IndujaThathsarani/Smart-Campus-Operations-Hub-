@@ -13,8 +13,8 @@ export default function Navbar() {
           <NavLink to="/resources" className={linkClass}>
             Resources
           </NavLink>
-          <NavLink to="/bookings" className={linkClass}>
-            Bookings
+          <NavLink to="/bookings/mine" className={linkClass}>
+            My Bookings
           </NavLink>
           <NavLink to="/tickets" className={linkClass}>
             Tickets

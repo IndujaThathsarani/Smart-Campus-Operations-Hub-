@@ -38,3 +38,93 @@ body {
   margin: 0 0 1.25rem;
   color: #4b5563;
 }
+
+.admin-overview-header {
+  margin-bottom: 1rem;
+}
+
+.admin-overview-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(1.4rem, 2.8vw, 1.9rem);
+}
+
+.admin-overview-header p {
+  margin: 0.4rem 0 0;
+  color: #475569;
+}
+
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.admin-overview-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.admin-overview-label {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.admin-overview-value {
+  margin: 0.35rem 0 0;
+  font-size: 1.2rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.admin-overview-link {
+  display: inline-block;
+  margin-top: 0.8rem;
+  text-decoration: none;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.admin-overview-link:hover {
+  color: #1e40af;
+}
+
+.admin-overview-note {
+  margin: 0.8rem 0 0;
+  color: #475569;
+}
+
+.admin-overview-status-wrap {
+  max-width: 400px;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.85rem;
+  background: #ffffff;
+}
+
+.admin-overview-status-arc {
+  width: min(320px, 100%);
+  aspect-ratio: 2 / 1;
+  border: 16px solid #e2e8f0;
+  border-bottom: 0;
+  border-radius: 999px 999px 0 0;
+  position: relative;
+}
+
+.admin-overview-status-arc::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border: 16px solid transparent;
+  border-top-color: #22c55e;
+  border-right-color: #22c55e;
+  border-radius: 999px 999px 0 0;
+  transform: rotate(-32deg);
+}

@@ -115,7 +115,7 @@ const BookingForm = () => {
             if (result.message) {
                 setSuccess(true);
                 setTimeout(() => {
-                    navigate('/bookings');
+                    navigate('/bookings/mine');
                 }, 2000);
             }
         } catch (err) {
@@ -292,7 +292,7 @@ const BookingForm = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => navigate('/bookings')}
+                            onClick={() => navigate('/bookings/mine')}
                             className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors"
                         >
                             Cancel
