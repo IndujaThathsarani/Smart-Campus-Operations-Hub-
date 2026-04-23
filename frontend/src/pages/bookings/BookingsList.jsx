@@ -75,6 +75,16 @@ const BookingsList = () => {
         ? bookings 
         : bookings.filter(b => b.status === filter);
 
+    const formatDateTime = (value) => {
+        return new Date(value).toLocaleString([], {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -143,54 +153,57 @@ const BookingsList = () => {
 
             {/* Bookings Table */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full">
+                <div className="overflow-hidden">
+                    <table className="w-full table-fixed">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+                                <th className="w-[11%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th className="w-[16%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
+                                <th className="w-[16%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+                                <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
+                                <th className="w-[9%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
+                                <th className="w-[11%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="w-[12%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredBookings.map((booking) => (
                                 <tr key={booking.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{booking.resourceId}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{booking.userName}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(booking.startTime).toLocaleString()}
+                                    <td className="px-4 py-4 text-sm text-gray-900 break-words">{booking.resourceId}</td>
+                                    <td className="px-4 py-4 text-sm text-gray-900 break-words">{booking.userName}</td>
+                                    <td className="px-4 py-4 text-sm text-gray-900 leading-tight break-words">
+                                        {formatDateTime(booking.startTime)}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(booking.endTime).toLocaleString()}
+                                    <td className="px-4 py-4 text-sm text-gray-900 leading-tight break-words">
+                                        {formatDateTime(booking.endTime)}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{booking.purpose}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{booking.expectedAttendees}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(booking.status)}`}>
+                                    <td className="px-4 py-4 text-sm text-gray-900 break-words">{booking.purpose}</td>
+                                    <td className="px-4 py-4 text-sm text-gray-900">{booking.expectedAttendees}</td>
+                                    <td className="px-4 py-4 align-top">
+                                        <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getStatusColor(booking.status)}`}>
                                             {booking.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-4 align-top text-sm">
                                         {booking.status === 'PENDING' && (
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-wrap gap-1">
                                                 <button
                                                     onClick={() => handleApprove(booking.id)}
-                                                    className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition-colors"
+                                                    className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition-colors"
                                                 >
-                                                    ✅ Approve
+                                                    Approve
                                                 </button>
                                                 <button
                                                     onClick={() => handleReject(booking.id)}
-                                                    className="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition-colors"
+                                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
                                                 >
-                                                    ❌ Reject
+                                                    Reject
                                                 </button>
                                             </div>
+                                        )}
+                                        {booking.status !== 'PENDING' && (
+                                            <span className="text-gray-400">-</span>
                                         )}
                                     </td>
                                 </tr>
