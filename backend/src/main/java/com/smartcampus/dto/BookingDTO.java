@@ -9,6 +9,7 @@ public class BookingDTO {
     private LocalDateTime endTime;
     private String purpose;
     private Integer expectedAttendees;
+    private boolean waitlistRequested;
     
     public BookingDTO() {}
     
@@ -20,6 +21,7 @@ public class BookingDTO {
         this.endTime = endTime;
         this.purpose = purpose;
         this.expectedAttendees = expectedAttendees;
+        this.waitlistRequested = false;
     }
     
     // Getters
@@ -29,6 +31,7 @@ public class BookingDTO {
     public LocalDateTime getEndTime() { return endTime; }
     public String getPurpose() { return purpose; }
     public Integer getExpectedAttendees() { return expectedAttendees; }
+    public boolean isWaitlistRequested() { return waitlistRequested; }
     
     // Setters
     public void setResourceId(String resourceId) { this.resourceId = resourceId; }
@@ -37,4 +40,5 @@ public class BookingDTO {
     public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
     public void setPurpose(String purpose) { this.purpose = purpose; }
     public void setExpectedAttendees(Integer expectedAttendees) { this.expectedAttendees = expectedAttendees; }
+    public void setWaitlistRequested(boolean waitlistRequested) { this.waitlistRequested = waitlistRequested; }
 }

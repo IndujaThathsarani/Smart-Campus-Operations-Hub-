@@ -53,6 +53,7 @@ const MyBookings = () => {
     const getStatusColor = (status) => {
         switch(status) {
             case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+            case 'WAITLISTED': return 'bg-blue-100 text-blue-800';
             case 'APPROVED': return 'bg-green-100 text-green-800';
             case 'REJECTED': return 'bg-red-100 text-red-800';
             case 'CANCELLED': return 'bg-gray-100 text-gray-800';
@@ -63,6 +64,7 @@ const MyBookings = () => {
     const getStatusIcon = (status) => {
         switch(status) {
             case 'PENDING': return '⏳';
+            case 'WAITLISTED': return '🕒';
             case 'APPROVED': return '✅';
             case 'REJECTED': return '❌';
             case 'CANCELLED': return '🚫';
@@ -185,6 +187,9 @@ const MyBookings = () => {
                                             )}
                                             {booking.status === 'PENDING' && (
                                                 <span className="text-yellow-600 text-xs">Waiting for approval</span>
+                                            )}
+                                            {booking.status === 'WAITLISTED' && (
+                                                <span className="text-blue-600 text-xs">On waitlist</span>
                                             )}
                                             {booking.status === 'REJECTED' && (
                                                 <span className="text-red-600 text-xs">Booking rejected</span>

@@ -96,6 +96,7 @@ const BookingsList = () => {
     const getStatusColor = (status) => {
         switch(status) {
             case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+            case 'WAITLISTED': return 'bg-blue-100 text-blue-800';
             case 'APPROVED': return 'bg-green-100 text-green-800';
             case 'REJECTED': return 'bg-red-100 text-red-800';
             case 'CANCELLED': return 'bg-gray-100 text-gray-800';
@@ -215,7 +216,7 @@ const BookingsList = () => {
 
             {/* Filter Tabs */}
             <div className="flex gap-2 mb-4 border-b">
-                {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
+                {['ALL', 'PENDING', 'WAITLISTED', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
                     <button
                         key={status}
                         onClick={() => setFilter(status)}
