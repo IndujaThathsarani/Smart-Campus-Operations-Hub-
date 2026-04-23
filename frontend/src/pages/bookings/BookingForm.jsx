@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createBooking, checkConflict } from '../../services/bookingService';
 
-const BookingForm = ({ initialResourceId = '', initialLocation = '' }) => {
+const BookingForm = ({ initialResourceId = '', initialLocation = '', initialReturnTo = '' }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [conflictError, setConflictError] = useState(null);
+    const [bookingCreated, setBookingCreated] = useState(false);
     const [formData, setFormData] = useState({
         resourceId: initialResourceId,
         location: initialLocation,
@@ -58,8 +59,7 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '' }) => {
         try {
             const result = await createBooking(formData);
             if (result.message) {
-                alert('✅ Booking request created successfully!');
-                navigate('/bookings');
+                setBookingCreated(true);
             }
         } catch (err) {
             if (err.body?.error === 'CONFLICT') {
@@ -78,6 +78,29 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '' }) => {
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         return now.toISOString().slice(0, 16);
     };
+
+    if (bookingCreated) {
+        return (
+            <div className="min-h-[70vh] flex items-center justify-center bg-[#f3f4f6] p-6">
+                <div className="w-full max-w-xl rounded-3xl bg-[#111827] p-10 text-center shadow-lg border border-blue-500/20">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-4xl text-blue-600">
+                        ✓
+                    </div>
+                    <h2 className="mb-3 text-4xl font-extrabold text-white">Booking Confirmed!</h2>
+                    <p className="mx-auto mb-8 max-w-md text-base text-white/90">
+                        Your booking request has been placed successfully. Click the button below to view My Bookings.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/bookings?tab=my')}
+                        className="rounded-xl bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow hover:bg-blue-700"
+                    >
+                        Go to My Bookings
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto p-6">
@@ -189,7 +212,7 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '' }) => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => navigate('/bookings')}
+                            onClick={() => navigate(initialReturnTo || '/bookings?tab=my')}
                             className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors"
                         >
                             Cancel
