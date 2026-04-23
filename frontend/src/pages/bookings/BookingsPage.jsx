@@ -7,7 +7,7 @@ const BookingsPage = () => {
     const [activeTab, setActiveTab] = useState('all');
 
     return (
-        <div className="container mx-auto px-4 py-6">
+        <div className="mx-auto w-full px-2 py-6 sm:px-4 lg:px-6">
             {/* Tab Navigation */}
             <div className="flex border-b mb-6">
                 <button

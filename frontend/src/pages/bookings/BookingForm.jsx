@@ -49,10 +49,10 @@ const BookingForm = () => {
                 navigate('/bookings');
             }
         } catch (err) {
-            if (err.response?.data?.error === 'CONFLICT') {
+            if (err.body?.error === 'CONFLICT') {
                 setError('❌ Time slot conflict! This resource is already booked for the selected time.');
             } else {
-                setError('❌ Failed to create booking. Please try again.');
+                setError(err.body?.message || '❌ Failed to create booking. Please try again.');
             }
         } finally {
             setLoading(false);
