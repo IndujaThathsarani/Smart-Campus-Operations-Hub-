@@ -9,6 +9,7 @@ const BookingsPage = () => {
     const requestedTab = searchParams.get('tab');
     const prefilledResourceId = searchParams.get('resourceId') || '';
     const prefilledLocation = searchParams.get('location') || '';
+    const returnTo = searchParams.get('returnTo') || '';
     const [activeTab, setActiveTab] = useState('all');
 
     useEffect(() => {
@@ -56,7 +57,7 @@ const BookingsPage = () => {
             {/* Render Active Tab */}
             <div>
                 {activeTab === 'all' && <BookingsList />}
-                {activeTab === 'new' && <BookingForm initialResourceId={prefilledResourceId} initialLocation={prefilledLocation} />}
+                {activeTab === 'new' && <BookingForm initialResourceId={prefilledResourceId} initialLocation={prefilledLocation} initialReturnTo={returnTo} />}
                 {activeTab === 'my' && <MyBookings />}
             </div>
         </div>
