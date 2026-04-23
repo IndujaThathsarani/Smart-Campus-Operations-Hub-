@@ -1,13 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import BookingsList from './BookingsList';
 import BookingForm from './BookingForm';
 import MyBookings from './MyBookings';
 
 const BookingsPage = () => {
+    const [searchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    const prefilledResourceId = searchParams.get('resourceId') || '';
+    const prefilledLocation = searchParams.get('location') || '';
+    const returnTo = searchParams.get('returnTo') || '';
     const [activeTab, setActiveTab] = useState('all');
 
+    useEffect(() => {
+        if (requestedTab === 'new' || requestedTab === 'my' || requestedTab === 'all') {
+            setActiveTab(requestedTab);
+        }
+    }, [requestedTab]);
+
     return (
-        <div className="container mx-auto px-4 py-6">
+        <div className="mx-auto w-full px-2 py-6 sm:px-4 lg:px-6">
             {/* Tab Navigation */}
             <div className="flex border-b mb-6">
                 <button
@@ -45,7 +57,7 @@ const BookingsPage = () => {
             {/* Render Active Tab */}
             <div>
                 {activeTab === 'all' && <BookingsList />}
-                {activeTab === 'new' && <BookingForm />}
+                {activeTab === 'new' && <BookingForm initialResourceId={prefilledResourceId} initialLocation={prefilledLocation} initialReturnTo={returnTo} />}
                 {activeTab === 'my' && <MyBookings />}
             </div>
         </div>

@@ -16,9 +16,14 @@ export default function Navbar() {
           <NavLink to="/resources" className={linkClass}>
             Resources
           </NavLink>
-          <NavLink to="/admin/catalogue" className={linkClass}>
+          <a
+            href="/admin/catalogue"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="nav-link"
+          >
             Admin Catalogue
-          </NavLink>
+          </a>
           <NavLink to="/bookings" className={linkClass}>
             Bookings
           </NavLink>
