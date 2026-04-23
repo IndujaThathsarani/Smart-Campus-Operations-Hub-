@@ -7,6 +7,7 @@ import com.smartcampus.repository.BookingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -14,18 +15,26 @@ public class BookingService {
     
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private NotificationService notificationService;
     
     public Booking createBooking(BookingDTO bookingDTO, String userId, String userName) {
         if (bookingDTO.getStartTime().isAfter(bookingDTO.getEndTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
         }
+
+        validateFutureDate(bookingDTO.getStartTime());
+        validateDuration(bookingDTO.getStartTime(), bookingDTO.getEndTime());
         
-        if (hasConflict(bookingDTO.getResourceId(), bookingDTO.getStartTime(), bookingDTO.getEndTime(), null)) {
+        boolean hasConflict = hasConflict(bookingDTO.getResourceId(), bookingDTO.getStartTime(), bookingDTO.getEndTime(), null);
+        if (hasConflict && !bookingDTO.isWaitlistRequested()) {
             throw new IllegalStateException("Time slot conflicts with existing booking");
         }
         
         Booking booking = new Booking(
             bookingDTO.getResourceId(),
+            bookingDTO.getLocation(),
             userId,
             userName,
             bookingDTO.getStartTime(),
@@ -33,8 +42,25 @@ public class BookingService {
             bookingDTO.getPurpose(),
             bookingDTO.getExpectedAttendees()
         );
+
+        if (hasConflict && bookingDTO.isWaitlistRequested()) {
+            booking.setStatus(BookingStatus.WAITLISTED);
+            booking.setAdminReason("Added to waitlist because the requested slot is already booked");
+        }
         
-        return bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        if (savedBooking.getStatus() == BookingStatus.WAITLISTED) {
+            notificationService.createNotification(
+                userId,
+                "Added to waitlist",
+                "Your booking request for resource " + savedBooking.getResourceId() + " has been added to the waitlist.",
+                "WAITLISTED",
+                savedBooking.getId()
+            );
+        }
+
+        return savedBooking;
     }
     
     public boolean hasConflict(String resourceId, LocalDateTime startTime, LocalDateTime endTime, String excludeBookingId) {
@@ -95,7 +121,38 @@ public class BookingService {
         }
         
         booking.setStatus(BookingStatus.CANCELLED);
-        return bookingRepository.save(booking);
+        Booking cancelledBooking = bookingRepository.save(booking);
+        promoteNextWaitlistedBooking(cancelledBooking);
+        return cancelledBooking;
+    }
+
+    private void promoteNextWaitlistedBooking(Booking cancelledBooking) {
+        List<Booking> waitlistedBookings = bookingRepository.findConflictingBookings(
+            cancelledBooking.getResourceId(),
+            List.of(BookingStatus.WAITLISTED),
+            cancelledBooking.getStartTime(),
+            cancelledBooking.getEndTime()
+        );
+
+        waitlistedBookings.stream()
+            .sorted(Comparator.comparing(Booking::getCreatedAt))
+            .findFirst()
+            .ifPresent(nextBooking -> {
+                nextBooking.setStatus(BookingStatus.APPROVED);
+                nextBooking.setAdminReason(
+                    "Auto-promoted from waitlist after cancellation of booking " + cancelledBooking.getId()
+                );
+                bookingRepository.save(nextBooking);
+
+                notificationService.createNotification(
+                    nextBooking.getUserId(),
+                    "Waitlist promoted",
+                    "Your waitlisted booking for resource " + nextBooking.getResourceId() +
+                        " has been promoted to approved.",
+                    "PROMOTED",
+                    nextBooking.getId()
+                );
+            });
     }
     
     public Booking getBookingById(String bookingId) {

@@ -520,7 +520,7 @@ export default function Catalogue() {
                       </td>
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                         <button
-                          onClick={() => navigate('/bookings')}
+                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.name || resource.id)}&location=${encodeURIComponent(resource.location || '')}&returnTo=${encodeURIComponent('/resources')}`)}
                           disabled={resource.status !== 'ACTIVE'}
                           style={{
                             padding: '0.3rem 0.75rem',

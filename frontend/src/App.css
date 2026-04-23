@@ -43,6 +43,13 @@ body {
   margin: 0 auto;
 }
 
+.app-main--wide {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 1.5rem clamp(0.75rem, 2.5vw, 2rem);
+}
+
 /* Full-bleed admin routes: sidebar + content fill viewport below header */
 .app-main--full {
   max-width: none;
