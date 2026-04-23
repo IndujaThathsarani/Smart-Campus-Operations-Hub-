@@ -77,7 +77,9 @@ public class BookingController {
             Booking booking = bookingService.createBooking(bookingDTO, userId, userName);
             
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Booking created successfully");
+            response.put("message", booking.getStatus() == BookingStatus.WAITLISTED
+                ? "Booking added to waitlist"
+                : "Booking created successfully");
             response.put("bookingId", booking.getId());
             response.put("status", booking.getStatus());
             
