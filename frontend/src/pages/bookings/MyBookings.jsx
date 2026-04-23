@@ -26,7 +26,7 @@ const MyBookings = () => {
         if (window.confirm('Are you sure you want to cancel this booking?')) {
             try {
                 await cancelBooking(id);
-                alert('✅ Booking cancelledd successfully!');
+                alert('✅ Booking cancelled successfully!');
                 loadMyBookings();
             } catch (error) {
                 alert('❌ Failed to cancel booking');
