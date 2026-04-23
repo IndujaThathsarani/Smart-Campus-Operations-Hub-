@@ -17,6 +17,8 @@ public class Booking {
     
     @Indexed
     private String resourceId;
+
+    private String location;
     
     @Indexed
     private String userId;
@@ -50,8 +52,15 @@ public class Booking {
     public Booking(String resourceId, String userId, String userName, 
                    LocalDateTime startTime, LocalDateTime endTime, 
                    String purpose, Integer expectedAttendees) {
+        this(resourceId, null, userId, userName, startTime, endTime, purpose, expectedAttendees);
+    }
+
+    public Booking(String resourceId, String location, String userId, String userName,
+                   LocalDateTime startTime, LocalDateTime endTime,
+                   String purpose, Integer expectedAttendees) {
         this();
         this.resourceId = resourceId;
+        this.location = location;
         this.userId = userId;
         this.userName = userName;
         this.startTime = startTime;
@@ -67,6 +76,10 @@ public class Booking {
     
     public String getResourceId() {
         return resourceId;
+    }
+
+    public String getLocation() {
+        return location;
     }
     
     public String getUserId() {
@@ -116,6 +129,10 @@ public class Booking {
     
     public void setResourceId(String resourceId) {
         this.resourceId = resourceId;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
     
     public void setUserId(String userId) {
