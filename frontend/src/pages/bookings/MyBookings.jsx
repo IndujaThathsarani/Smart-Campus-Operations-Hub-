@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { getMyBookings, cancelBooking } from '../../services/bookingService';
-import { Link } from 'react-router-dom';
 
 const MyBookings = () => {
     const [bookings, setBookings] = useState([]);
@@ -64,26 +63,14 @@ const MyBookings = () => {
 
     return (
         <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6">
                 <h1 className="text-2xl font-bold">📖 My Bookings</h1>
-                <Link
-                    to="/bookings/new"
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                    + New Booking
-                </Link>
             </div>
 
             {bookings.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-lg shadow">
                     <div className="text-6xl mb-4">📅</div>
-                    <p className="text-gray-500 mb-4">You have no bookings yet.</p>
-                    <Link
-                        to="/bookings/new"
-                        className="inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                    >
-                        Make a Booking
-                    </Link>
+                    <p className="text-gray-500">You have no bookings yet.</p>
                 </div>
             ) : (
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">

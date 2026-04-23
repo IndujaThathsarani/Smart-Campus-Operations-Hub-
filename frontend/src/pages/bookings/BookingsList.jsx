@@ -7,6 +7,12 @@ const BookingsList = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
     const [showStats, setShowStats] = useState(false);
+    const [toast, setToast] = useState(null);
+    const [rejectDialog, setRejectDialog] = useState({
+        open: false,
+        bookingId: null,
+        reason: ''
+    });
 
     useEffect(() => {
         loadBookings();
@@ -33,32 +39,58 @@ const BookingsList = () => {
         }
     };
 
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 2500);
+    };
+
     const handleApprove = async (id) => {
-        const reason = prompt('Enter approval reason:');
-        if (reason !== null) {
-            try {
-                await approveBooking(id, reason || 'Approved by admin');
-                loadBookings();
-                loadStatistics();
-                alert('✅ Booking approved successfully!');
-            } catch (error) {
-                alert('❌ Failed to approve booking');
-            }
+        try {
+            await approveBooking(id, 'Approved by admin');
+            loadBookings();
+            loadStatistics();
+            showToast('Booking approved successfully.');
+        } catch (error) {
+            showToast('Failed to approve booking.', 'error');
         }
     };
 
-    const handleReject = async (id) => {
-        const reason = prompt('Enter rejection reason:');
-        if (reason !== null) {
-            try {
-                await rejectBooking(id, reason || 'Rejected by admin');
-                loadBookings();
-                loadStatistics();
-                alert('✅ Booking rejected successfully!');
-            } catch (error) {
-                alert('❌ Failed to reject booking');
-            }
+    const handleReject = async (id, reason) => {
+        try {
+            await rejectBooking(id, reason);
+            loadBookings();
+            loadStatistics();
+            showToast('Booking rejected successfully.');
+        } catch (error) {
+            showToast('Failed to reject booking.', 'error');
         }
+    };
+
+    const openRejectDialog = (bookingId) => {
+        setRejectDialog({
+            open: true,
+            bookingId,
+            reason: ''
+        });
+    };
+
+    const closeRejectDialog = () => {
+        setRejectDialog({
+            open: false,
+            bookingId: null,
+            reason: ''
+        });
+    };
+
+    const submitReject = async () => {
+        const reason = rejectDialog.reason.trim();
+        if (!reason || !rejectDialog.bookingId) {
+            return;
+        }
+        await handleReject(rejectDialog.bookingId, reason);
+        closeRejectDialog();
     };
 
     const getStatusColor = (status) => {
@@ -95,6 +127,53 @@ const BookingsList = () => {
 
     return (
         <div className="p-6">
+            {toast && (
+                <div className="fixed right-6 top-24 z-50">
+                    <div
+                        className={`rounded-lg px-4 py-3 shadow-lg border text-sm font-medium ${
+                            toast.type === 'error'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-green-50 text-green-700 border-green-200'
+                        }`}
+                    >
+                        {toast.message}
+                    </div>
+                </div>
+            )}
+
+            {rejectDialog.open && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+                        <h3 className="text-lg font-semibold text-gray-900">Reject Booking</h3>
+                        <p className="mt-1 text-sm text-gray-600">Type the reason for rejection.</p>
+                        <textarea
+                            value={rejectDialog.reason}
+                            onChange={(e) => setRejectDialog(prev => ({ ...prev, reason: e.target.value }))}
+                            rows={4}
+                            className="mt-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Enter rejection reason..."
+                        />
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeRejectDialog}
+                                className="rounded-lg bg-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={submitReject}
+                                disabled={!rejectDialog.reason.trim()}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                            >
+                                Confirm Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">📋 Booking Management</h1>
                 <button
@@ -157,20 +236,22 @@ const BookingsList = () => {
                     <table className="w-full table-fixed">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="w-[10%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+                                <th className="w-[9%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+                                <th className="w-[11%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                                 <th className="w-[11%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th className="w-[16%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
-                                <th className="w-[16%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                                <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
-                                <th className="w-[9%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
-                                <th className="w-[11%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="w-[12%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th className="w-[13%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
+                                <th className="w-[13%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+                                <th className="w-[13%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
+                                <th className="w-[8%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
+                                <th className="w-[9%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="w-[13%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredBookings.map((booking) => (
                                 <tr key={booking.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-4 text-sm text-gray-900 break-words">{booking.resourceId}</td>
+                                    <td className="px-4 py-4 text-sm text-gray-900 break-words">{booking.location || '-'}</td>
                                     <td className="px-4 py-4 text-sm text-gray-900 break-words">{booking.userName}</td>
                                     <td className="px-4 py-4 text-sm text-gray-900 leading-tight break-words">
                                         {formatDateTime(booking.startTime)}
@@ -195,7 +276,7 @@ const BookingsList = () => {
                                                     Approve
                                                 </button>
                                                 <button
-                                                    onClick={() => handleReject(booking.id)}
+                                                    onClick={() => openRejectDialog(booking.id)}
                                                     className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
                                                 >
                                                     Reject

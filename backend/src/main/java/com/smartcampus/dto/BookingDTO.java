@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public class BookingDTO {
     private String resourceId;
+    private String location;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String purpose;
@@ -11,9 +12,10 @@ public class BookingDTO {
     
     public BookingDTO() {}
     
-    public BookingDTO(String resourceId, LocalDateTime startTime, LocalDateTime endTime, 
+    public BookingDTO(String resourceId, String location, LocalDateTime startTime, LocalDateTime endTime,
                       String purpose, Integer expectedAttendees) {
         this.resourceId = resourceId;
+        this.location = location;
         this.startTime = startTime;
         this.endTime = endTime;
         this.purpose = purpose;
@@ -22,6 +24,7 @@ public class BookingDTO {
     
     // Getters
     public String getResourceId() { return resourceId; }
+    public String getLocation() { return location; }
     public LocalDateTime getStartTime() { return startTime; }
     public LocalDateTime getEndTime() { return endTime; }
     public String getPurpose() { return purpose; }
@@ -29,6 +32,7 @@ public class BookingDTO {
     
     // Setters
     public void setResourceId(String resourceId) { this.resourceId = resourceId; }
+    public void setLocation(String location) { this.location = location; }
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
     public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
     public void setPurpose(String purpose) { this.purpose = purpose; }

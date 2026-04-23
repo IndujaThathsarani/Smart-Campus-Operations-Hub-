@@ -26,6 +26,7 @@ public class BookingService {
         
         Booking booking = new Booking(
             bookingDTO.getResourceId(),
+            bookingDTO.getLocation(),
             userId,
             userName,
             bookingDTO.getStartTime(),
