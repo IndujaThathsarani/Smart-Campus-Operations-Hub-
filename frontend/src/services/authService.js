@@ -11,11 +11,11 @@ export const getRoleRedirectPath = (roles = []) => {
   }
 
   if (roles.includes("ROLE_ADMIN")) {
-    return "/admin";
+    return "/admin/catalogue";
   }
 
   if (roles.includes("ROLE_TECHNICIAN")) {
-    return "/tickets/technician-dashboard";
+    return "/technician/tickets";
   }
 
   return "/resources";

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { loginWithGoogle } from "../services/authService";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import { motion } from "framer-motion";
@@ -92,11 +93,8 @@ const HomePage = () => {
   }, []);
 
   const handleSignIn = () => {
-    // Update this later with your actual backend OAuth URL
-    // Example:
-    // window.location.href = "http://localhost:8080/oauth2/authorization/google";
-    window.location.href = "/oauth2/authorization/google";
-  };
+  loginWithGoogle();
+};
 
   return (
     <motion.div

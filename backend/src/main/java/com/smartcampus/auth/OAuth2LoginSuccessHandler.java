@@ -45,19 +45,19 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.sendRedirect(redirectUrl);
     }
 
-    private String determineRedirectUrl(User user) {
-        if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_SYSTEM_ADMIN)) {
-            return "http://localhost:5173/system-admin/dashboard";
-        }
-
-        if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_ADMIN)) {
-            return "http://localhost:5173/admin";
-        }
-
-        if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_TECHNICIAN)) {
-            return "http://localhost:5173/tickets/technician-dashboard";
-        }
-
-        return "http://localhost:5173/resources";
+   private String determineRedirectUrl(User user) {
+    if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_SYSTEM_ADMIN)) {
+        return "http://localhost:5173/system-admin/dashboard";
     }
+
+    if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_ADMIN)) {
+        return "http://localhost:5173/admin/catalogue";
+    }
+
+    if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_TECHNICIAN)) {
+        return "http://localhost:5173/technician/tickets";
+    }
+
+    return "http://localhost:5173/resources";
+}
 }
