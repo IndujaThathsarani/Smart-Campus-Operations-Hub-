@@ -4,6 +4,7 @@ import com.smartcampus.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -15,9 +16,14 @@ import java.io.IOException;
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserAuthService userAuthService;
+    private final String frontendBaseUrl;
 
-    public OAuth2LoginSuccessHandler(UserAuthService userAuthService) {
+    public OAuth2LoginSuccessHandler(
+            UserAuthService userAuthService,
+            @Value("${app.frontend.base-url:http://localhost:5173}") String frontendBaseUrl
+    ) {
         this.userAuthService = userAuthService;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     @Override
@@ -45,19 +51,23 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.sendRedirect(redirectUrl);
     }
 
-   private String determineRedirectUrl(User user) {
-    if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_SYSTEM_ADMIN)) {
-        return "http://localhost:5173/system-admin/dashboard";
-    }
+    private String determineRedirectUrl(User user) {
+        String base = frontendBaseUrl.endsWith("/")
+                ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
+                : frontendBaseUrl;
 
-    if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_ADMIN)) {
-        return "http://localhost:5173/admin/catalogue";
-    }
+        if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_SYSTEM_ADMIN)) {
+            return base + "/system-admin/dashboard";
+        }
 
-    if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_TECHNICIAN)) {
-        return "http://localhost:5173/technician/tickets";
-    }
+        if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_ADMIN)) {
+            return base + "/admin/catalogue";
+        }
 
-    return "http://localhost:5173/resources";
-}
+        if (user.getRoles().contains(com.smartcampus.model.Role.ROLE_TECHNICIAN)) {
+            return base + "/technician/tickets";
+        }
+
+        return base + "/resources";
+    }
 }

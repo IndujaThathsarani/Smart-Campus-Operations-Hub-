@@ -1,4 +1,4 @@
-import { apiGet } from "./apiClient";
+import { API_BASE_URL, apiGet } from "./apiClient";
 
 export const getCurrentUser = async () => {
   return apiGet("/api/auth/me");
@@ -21,5 +21,5 @@ export const getRoleRedirectPath = (roles = []) => {
 };
 
 export const loginWithGoogle = () => {
-  window.location.href = "http://localhost:8080/oauth2/authorization/google";
+  window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
 };

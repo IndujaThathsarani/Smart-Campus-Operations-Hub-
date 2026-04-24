@@ -1,13 +1,13 @@
 /** Origin only (no `/api`). Request paths already include `/api/...`. */
 function resolveApiBaseUrl() {
-  const raw = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+  const raw = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
   let base = String(raw).trim().replace(/\/$/, '')
 
   if (base.endsWith('/api')) {
     base = base.slice(0, -4)
   }
 
-  return base || 'http://localhost:8080'
+  return base || 'http://localhost:8081'
 }
 
 const API_BASE_URL = resolveApiBaseUrl()

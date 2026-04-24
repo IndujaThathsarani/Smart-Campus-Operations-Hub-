@@ -36,7 +36,8 @@ public class SecurityConfig {
                                 "/",
                                 "/error",
                                 "/oauth2/**",
-                                "/login/**"
+                                "/login/oauth2/**",
+                                "/api/auth/**"
                         ).permitAll()
 
                         .requestMatchers("/api/system-admin/**")
