@@ -3,6 +3,7 @@ package com.smartcampus.auth;
 import com.smartcampus.dto.AuthUserResponse;
 import com.smartcampus.dto.LoginRequest;
 import com.smartcampus.dto.SignupRequest;
+import com.smartcampus.dto.ChangeRoleRequest;
 import com.smartcampus.model.Role;
 import com.smartcampus.model.User;
 import com.smartcampus.repository.UserRepository;
@@ -27,10 +28,12 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RoleService roleService;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, RoleService roleService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.roleService = roleService;
     }
 
     @PostMapping("/signup")
@@ -55,7 +58,11 @@ public class AuthController {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setProvider("MANUAL");
-        user.setRoles(Set.of(Role.ROLE_USER));
+        
+        // Assign role from RoleService based on email mapping
+        Role assignedRole = roleService.getRoleForEmail(request.getEmail());
+        user.setRoles(Set.of(assignedRole));
+        
         user.setActive(true);
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());
@@ -95,6 +102,11 @@ public class AuthController {
         if (!user.isActive()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User account is inactive");
         }
+
+        // Sync roles with role service mapping (in case role was changed)
+        Role assignedRole = roleService.getRoleForEmail(request.getEmail());
+        user.setRoles(Set.of(assignedRole));
+        userRepository.save(user);
 
         HttpSession session = httpRequest.getSession(true);
         session.setAttribute("SPRING_SECURITY_CONTEXT", user.getEmail());
@@ -161,5 +173,61 @@ public class AuthController {
         }
         SecurityContextHolder.clearContext();
         return ResponseEntity.ok("Logged out successfully");
+    }
+
+    @PostMapping("/change-role")
+    public ResponseEntity<?> changeUserRole(@RequestBody ChangeRoleRequest request, Authentication authentication) {
+        // Check if current user is SYSTEM_ADMIN
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not authenticated");
+        }
+
+        String currentUserEmail = null;
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof OAuth2User oAuth2User) {
+            currentUserEmail = oAuth2User.getAttribute("email");
+        }
+
+        if (currentUserEmail == null || currentUserEmail.isBlank()) {
+            currentUserEmail = authentication.getName();
+        }
+
+        // Verify current user is SYSTEM_ADMIN
+        if (!roleService.isSystemAdmin(currentUserEmail)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only SYSTEM_ADMIN can change user roles");
+        }
+
+        if (request.getTargetEmail() == null || request.getTargetEmail().isBlank()) {
+            return ResponseEntity.badRequest().body("Target email is required");
+        }
+
+        if (request.getNewRole() == null) {
+            return ResponseEntity.badRequest().body("New role is required");
+        }
+
+        // Find the target user
+        Optional<User> targetUserOpt = userRepository.findByEmail(request.getTargetEmail());
+        if (targetUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+
+        // Update the role mapping and user
+        User targetUser = targetUserOpt.get();
+        roleService.updateEmailRoleMapping(request.getTargetEmail(), request.getNewRole());
+        targetUser.setRoles(Set.of(request.getNewRole()));
+        targetUser.setUpdatedAt(Instant.now());
+        
+        User updatedUser = userRepository.save(targetUser);
+
+        return ResponseEntity.ok(new AuthUserResponse(
+                true,
+                updatedUser.getId(),
+                updatedUser.getName(),
+                updatedUser.getEmail(),
+                updatedUser.getProfilePicture(),
+                updatedUser.getRoles(),
+                updatedUser.isActive()
+        ));
     }
 }

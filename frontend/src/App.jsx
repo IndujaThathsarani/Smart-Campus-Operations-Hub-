@@ -25,7 +25,14 @@ export default function App() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />
 
-        <Route path="/resources" element={<Catalogue />} />
+        <Route
+          path="/resources"
+          element={
+            <ProtectedRoute allowedRoles={["ROLE_USER", "ROLE_ADMIN", "ROLE_TECHNICIAN", "ROLE_SYSTEM_ADMIN"]}>
+              <Catalogue />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/admin/catalogue"
