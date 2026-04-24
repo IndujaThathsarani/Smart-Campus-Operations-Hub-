@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginWithGoogle } from "../services/authService";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import { motion } from "framer-motion";
@@ -80,9 +79,9 @@ const roles = [
 
 const quickHighlights = [
   "Google OAuth 2.0 sign-in",
+  "Email & password authentication",
   "Role-based access control",
   "Protected frontend routes",
-  "Role-based redirection after login",
 ];
 
 const HomePage = () => {
@@ -92,9 +91,9 @@ const HomePage = () => {
     AOS.init({ duration: 700, once: true, easing: "ease-out-cubic" });
   }, []);
 
-  const handleSignIn = () => {
-  loginWithGoogle();
-};
+  const handleGetStarted = () => {
+    navigate("/auth");
+  };
 
   return (
     <motion.div
@@ -135,10 +134,10 @@ const HomePage = () => {
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={handleSignIn}
+                onClick={handleGetStarted}
                 className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5"
               >
-                Sign in with Google
+                Get Started
               </button>
 
               <button
@@ -284,19 +283,19 @@ const HomePage = () => {
       <section className="bg-gradient-to-r from-cyan-600 to-blue-700 py-16 text-white">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8" data-aos="fade-up">
           <h2 className="text-3xl font-extrabold sm:text-4xl">
-            Ready to sign in?
+            Ready to get started?
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-cyan-50">
-            Authenticate with Google and access the correct dashboard automatically
-            according to your assigned role.
+            Sign in or create an account with your email, or authenticate with Google.
+            Access the correct dashboard automatically according to your assigned role.
           </p>
 
           <button
             type="button"
-            onClick={handleSignIn}
+            onClick={handleGetStarted}
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3 text-sm font-bold text-cyan-700 shadow-xl transition hover:-translate-y-0.5"
           >
-            Continue with Google
+            Get Started Now
             <FaArrowRight />
           </button>
         </div>

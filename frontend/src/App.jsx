@@ -4,6 +4,7 @@ import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 import HomePage from "./pages/HomePage";
+import AuthPage from "./pages/auth/AuthPage";
 import Catalogue from "./pages/resources/Catalogue";
 import AdminCatalogue from "./pages/resources/AdminCatalogue";
 import BookingsPage from "./pages/bookings/BookingsPage";
@@ -19,6 +20,8 @@ import SystemAdminDashboard from "./pages/system-admin/SystemAdminDashboard";
 export default function App() {
   return (
     <Routes>
+      <Route path="/auth" element={<AuthPage />} />
+      
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />
 

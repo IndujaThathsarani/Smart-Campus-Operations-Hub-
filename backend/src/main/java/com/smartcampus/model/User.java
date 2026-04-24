@@ -16,6 +16,7 @@ public class User {
     private String name;
     private String email;
     private String profilePicture;
+    private String password;
     private String provider;
     private String providerId;
     private Set<Role> roles = new HashSet<>();
@@ -70,6 +71,15 @@ public class User {
 
     public void setProfilePicture(String profilePicture) {
         this.profilePicture = profilePicture;
+        this.updatedAt = Instant.now();
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
         this.updatedAt = Instant.now();
     }
 

@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiGet } from "./apiClient";
+import { API_BASE_URL, apiGet, apiSend } from "./apiClient";
 
 export const getCurrentUser = async () => {
   return apiGet("/api/auth/me");
@@ -22,4 +22,18 @@ export const getRoleRedirectPath = (roles = []) => {
 
 export const loginWithGoogle = () => {
   window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+};
+
+export const signup = async (email, password, name) => {
+  return apiSend("/api/auth/signup", {
+    method: "POST",
+    body: { email, password, name },
+  });
+};
+
+export const login = async (email, password) => {
+  return apiSend("/api/auth/login", {
+    method: "POST",
+    body: { email, password },
+  });
 };
