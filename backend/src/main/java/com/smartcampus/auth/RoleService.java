@@ -12,6 +12,7 @@ public class RoleService {
     private static final Map<String, Role> EMAIL_ROLE_MAPPING = new HashMap<>();
 
     static {
+        EMAIL_ROLE_MAPPING.put("buddhimasankalapa@gmai.com", Role.ROLE_USER);
         EMAIL_ROLE_MAPPING.put("buddhimasankalapa@gmail.com", Role.ROLE_USER);
         EMAIL_ROLE_MAPPING.put("janithsgunasekara003@gmail.com", Role.ROLE_ADMIN);
         EMAIL_ROLE_MAPPING.put("tiranrawishan@gmail.com", Role.ROLE_SYSTEM_ADMIN);
@@ -26,7 +27,7 @@ public class RoleService {
         if (email == null) {
             return Role.ROLE_USER;
         }
-        return EMAIL_ROLE_MAPPING.getOrDefault(email.toLowerCase(), Role.ROLE_USER);
+        return EMAIL_ROLE_MAPPING.getOrDefault(normalizeEmail(email), Role.ROLE_USER);
     }
 
     /**
@@ -48,7 +49,11 @@ public class RoleService {
      */
     public void updateEmailRoleMapping(String email, Role role) {
         if (email != null && role != null) {
-            EMAIL_ROLE_MAPPING.put(email.toLowerCase(), role);
+            EMAIL_ROLE_MAPPING.put(normalizeEmail(email), role);
         }
+    }
+
+    public String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase();
     }
 }

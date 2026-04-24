@@ -12,8 +12,10 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
@@ -48,19 +50,21 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Name is required");
         }
 
-        Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+        String normalizedEmail = roleService.normalizeEmail(request.getEmail());
+
+        Optional<User> existingUser = userRepository.findByEmail(normalizedEmail);
         if (existingUser.isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already registered");
         }
 
         User user = new User();
         user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setProvider("MANUAL");
         
         // Assign role from RoleService based on email mapping
-        Role assignedRole = roleService.getRoleForEmail(request.getEmail());
+        Role assignedRole = roleService.getRoleForEmail(normalizedEmail);
         user.setRoles(Set.of(assignedRole));
         
         user.setActive(true);
@@ -89,7 +93,9 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Password is required");
         }
 
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+        String normalizedEmail = roleService.normalizeEmail(request.getEmail());
+
+        Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
         }
@@ -104,12 +110,24 @@ public class AuthController {
         }
 
         // Sync roles with role service mapping (in case role was changed)
-        Role assignedRole = roleService.getRoleForEmail(request.getEmail());
+        Role assignedRole = roleService.getRoleForEmail(normalizedEmail);
         user.setRoles(Set.of(assignedRole));
         userRepository.save(user);
 
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+            normalizedEmail,
+            null,
+            user.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority(role.name()))
+                .toList()
+        );
+
+        SecurityContextImpl securityContext = new SecurityContextImpl();
+        securityContext.setAuthentication(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
         HttpSession session = httpRequest.getSession(true);
-        session.setAttribute("SPRING_SECURITY_CONTEXT", user.getEmail());
+        session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
 
         return ResponseEntity.ok(new AuthUserResponse(
                 true,
@@ -207,14 +225,16 @@ public class AuthController {
         }
 
         // Find the target user
-        Optional<User> targetUserOpt = userRepository.findByEmail(request.getTargetEmail());
+        String normalizedTargetEmail = roleService.normalizeEmail(request.getTargetEmail());
+
+        Optional<User> targetUserOpt = userRepository.findByEmail(normalizedTargetEmail);
         if (targetUserOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
 
         // Update the role mapping and user
         User targetUser = targetUserOpt.get();
-        roleService.updateEmailRoleMapping(request.getTargetEmail(), request.getNewRole());
+        roleService.updateEmailRoleMapping(normalizedTargetEmail, request.getNewRole());
         targetUser.setRoles(Set.of(request.getNewRole()));
         targetUser.setUpdatedAt(Instant.now());
         

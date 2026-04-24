@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, loginWithGoogle } from "../../services/authService";
+import { getRoleRedirectPath, login, loginWithGoogle } from "../../services/authService";
 import { FaGoogle, FaEnvelope, FaLock } from "react-icons/fa";
 
 export default function SignInForm() {
@@ -18,14 +18,18 @@ export default function SignInForm() {
     try {
       const result = await login(email, password);
       if (result?.authenticated) {
-        // Redirect to dashboard based on roles
-        navigate("/resources");
+        const redirectPath = getRoleRedirectPath(result.roles || []);
+        navigate(redirectPath, { replace: true });
         window.location.reload();
       } else {
         setError("Sign in failed. Please check your credentials.");
       }
     } catch (err) {
-      setError(err.body?.message || "Sign in failed. Please try again.");
+      const serverMessage =
+        typeof err?.body === "string"
+          ? err.body
+          : err?.body?.message || err?.message;
+      setError(serverMessage || "Sign in failed. Please try again.");
     } finally {
       setLoading(false);
     }
