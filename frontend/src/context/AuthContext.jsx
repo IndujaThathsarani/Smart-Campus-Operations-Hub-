@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getCurrentUser, getRoleRedirectPath, loginWithGoogle } from "../services/authService";
+import { getCurrentUser, getRoleRedirectPath, loginWithGoogle, logout as logoutService } from "../services/authService";
 
 const AuthContext = createContext(null);
 
@@ -40,6 +40,15 @@ export const AuthProvider = ({ children }) => {
 
   const getDashboardPath = () => getRoleRedirectPath(roles);
 
+  const logout = async () => {
+    try {
+      await logoutService();
+    } finally {
+      setUser(null);
+      setRoles([]);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -51,6 +60,7 @@ export const AuthProvider = ({ children }) => {
         hasAnyRole,
         getDashboardPath,
         loginWithGoogle,
+        logout,
         refreshUser: loadCurrentUser,
       }}
     >

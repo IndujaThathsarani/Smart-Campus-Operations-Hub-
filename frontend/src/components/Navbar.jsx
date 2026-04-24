@@ -1,10 +1,19 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import './Navbar.css'
 
 const linkClass = ({ isActive }) =>
   isActive ? 'nav-link nav-link-active' : 'nav-link'
 
 export default function Navbar() {
+  const { isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
+
   return (
     <header className="app-header">
       <div className="nav-inner">
@@ -33,6 +42,11 @@ export default function Navbar() {
           <NavLink to="/notifications" className={linkClass}>
             Notifications
           </NavLink>
+          {isAuthenticated && (
+            <button onClick={handleLogout} className="nav-link logout-btn">
+              LOGOUT
+            </button>
+          )}
         </nav>
       </div>
     </header>

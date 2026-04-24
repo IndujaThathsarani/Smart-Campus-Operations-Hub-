@@ -37,3 +37,9 @@ export const login = async (email, password) => {
     body: { email, password },
   });
 };
+
+export const logout = async () => {
+  return apiSend("/api/auth/logout", {
+    method: "POST",
+  });
+};
