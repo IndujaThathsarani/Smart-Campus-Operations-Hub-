@@ -14,7 +14,15 @@ function getStatusMeta(status) {
   return { label: status || 'Unknown', color: '#6b7280' }
 }
 
-// Resource categories for sidebar
+function formatDisplayDate(date) {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 const CATEGORY_META = {
   LECTURE_HALL: { label: 'Lecture Hall', icon: '🏛️' },
   CLASSROOM: { label: 'Lecture Hall', icon: '🏛️' },
@@ -86,15 +94,6 @@ function toDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function formatDisplayDate(date) {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function formatTimeLabel(date) {
@@ -1232,91 +1231,6 @@ export default function Catalogue() {
                     )}
                   </div>
 
-                  <div style={{
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    padding: '0.65rem',
-                  }}>
-                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '0.45rem' }}>
-                      Real-time availability check
-                    </div>
-
-                    {selectedDateBookableSlots.length > 0 ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                        <select
-                          value={selectedSlotKey}
-                          onChange={(e) => {
-                            setSelectedSlotKey(e.target.value)
-                            setBookingFeedback(null)
-                          }}
-                          style={{
-                            minWidth: '132px',
-                            padding: '0.35rem 0.45rem',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '8px',
-                            background: '#fff',
-                            fontSize: '0.76rem',
-                          }}
-                        >
-                          {selectedDateBookableSlots.map((slot) => {
-                            const optionKey = `${slot.start.toISOString()}|${slot.end.toISOString()}`
-                            return (
-                              <option key={optionKey} value={optionKey}>
-                                {formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}
-                              </option>
-                            )
-                          })}
-                        </select>
-
-                        <span style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          color: '#166534',
-                          background: '#dcfce7',
-                          border: '1px solid #bbf7d0',
-                          borderRadius: '999px',
-                          padding: '0.18rem 0.45rem',
-                        }}>
-                          Available
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={handleBookSelectedSlot}
-                          disabled={bookingInProgress || !selectedSlotKey}
-                          style={{
-                            padding: '0.38rem 0.7rem',
-                            borderRadius: '8px',
-                            border: '1px solid #bfdbfe',
-                            background: bookingInProgress ? '#cbd5e1' : '#93c5fd',
-                            color: '#0f172a',
-                            fontWeight: 700,
-                            cursor: bookingInProgress ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {bookingInProgress ? 'Booking...' : 'Book Selected Slot'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                        {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate)
-                          ? 'Selected date is outside configured availability, so no bookable slots are available.'
-                          : 'No bookable one-hour slots left for this date.'}
-                      </div>
-                    )}
-
-                    {bookingFeedback ? (
-                      <div style={{
-                        marginTop: '0.55rem',
-                        fontSize: '0.74rem',
-                        color: bookingFeedback.type === 'success' ? '#166534' : '#b91c1c',
-                        fontWeight: 600,
-                      }}>
-                        {bookingFeedback.text}
-                      </div>
-                    ) : null}
-                  </div>
               </>
             </div>
           </aside>
