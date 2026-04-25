@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { apiGet, apiSend } from '../../services/apiClient'
+import { API_BASE_URL, apiGet, apiSend } from '../../services/apiClient'
 import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
 const MAX_EQUIPMENT_IMAGE_SIZE_BYTES = 800 * 1024
@@ -193,6 +193,7 @@ export default function AdminCatalogue() {
   const [formData, setFormData] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
   const [loading, setLoading] = useState(false)
+  const [reportLoading, setReportLoading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -403,6 +404,49 @@ export default function AdminCatalogue() {
     }
   }
 
+  async function handleDownloadReport() {
+    setReportLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/resources/report`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/pdf' },
+      })
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to generate report'
+        try {
+          const body = await response.json()
+          errorMessage = body?.message || errorMessage
+        } catch {
+          // Ignore json parse errors for non-json responses.
+        }
+        throw new Error(errorMessage)
+      }
+
+      const blob = await response.blob()
+      const objectUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const contentDisposition = response.headers.get('content-disposition')
+      const matchedFilename = contentDisposition?.match(/filename="?([^";]+)"?/i)
+      const fileName = matchedFilename?.[1] || 'resource-management-report.pdf'
+
+      link.href = objectUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      setError(err.message || 'Failed to generate report')
+      console.error(err)
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
   return (
     <section className="relative h-full min-h-0 overflow-y-auto rounded-[28px] border border-slate-200 bg-white px-4 py-5 text-slate-900 shadow-xl shadow-slate-200/70 sm:px-6 lg:px-8">
 
@@ -421,14 +465,25 @@ export default function AdminCatalogue() {
               </p>
             </div>
 
-            <button
-              type="button"
-              disabled={loading}
-              onClick={openCreateForm}
-              className="inline-flex items-center justify-center rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              + Add Resource
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={loading || reportLoading}
+                onClick={handleDownloadReport}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {reportLoading ? 'Generating Report...' : 'Report PDF'}
+              </button>
+
+              <button
+                type="button"
+                disabled={loading || reportLoading}
+                onClick={openCreateForm}
+                className="inline-flex items-center justify-center rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                + Add Resource
+              </button>
+            </div>
           </div>
         </header>
 
