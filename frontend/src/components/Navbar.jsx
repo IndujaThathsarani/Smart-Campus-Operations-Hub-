@@ -1,10 +1,25 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import './Navbar.css'
 
 const linkClass = ({ isActive }) =>
   isActive ? 'nav-link nav-link-active' : 'nav-link'
 
 export default function Navbar() {
+  const { isAuthenticated, logout, roles } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
+
+  const hasRole = (role) => roles && roles.includes(role)
+  const isSystemAdmin = hasRole('ROLE_SYSTEM_ADMIN')
+  const isAdmin = hasRole('ROLE_ADMIN')
+  const isTechnician = hasRole('ROLE_TECHNICIAN')
+  const isUser = hasRole('ROLE_USER')
+
   return (
     <header className="app-header">
       <div className="nav-inner">
@@ -13,26 +28,69 @@ export default function Navbar() {
           <NavLink to="/" end className={linkClass}>
             HOME
           </NavLink>
-          <NavLink to="/resources" className={linkClass}>
-            Resources
-          </NavLink>
-          <a
-            href="/admin/catalogue"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="nav-link"
-          >
-            Admin Catalogue
-          </a>
-          <NavLink to="/bookings" className={linkClass}>
-            Bookings
-          </NavLink>
-          <NavLink to="/tickets" className={linkClass}>
-            Tickets
-          </NavLink>
-          <NavLink to="/notifications" className={linkClass}>
-            Notifications
-          </NavLink>
+
+          {/* User Resources - available to all authenticated users */}
+          {isAuthenticated && (
+            <NavLink to="/resources" className={linkClass}>
+              Resources
+            </NavLink>
+          )}
+
+          {/* Admin Catalogue - ADMIN and SYSTEM_ADMIN only */}
+          {(isAdmin || isSystemAdmin) && (
+            <NavLink to="/admin/catalogue" className={linkClass}>
+              Admin Catalogue
+            </NavLink>
+          )}
+
+          {/* Bookings - all authenticated users except TECHNICIAN */}
+          {isAuthenticated && (isUser || isAdmin || isSystemAdmin) && (
+            <NavLink to="/bookings" className={linkClass}>
+              Bookings
+            </NavLink>
+          )}
+
+          {/* User Tickets - available to USERS, ADMIN, TECHNICIAN, SYSTEM_ADMIN */}
+          {isAuthenticated && (
+            <NavLink to="/tickets" className={linkClass}>
+              Tickets
+            </NavLink>
+          )}
+
+          {/* Technician Dashboard - TECHNICIAN, ADMIN, SYSTEM_ADMIN only */}
+          {(isTechnician || isAdmin || isSystemAdmin) && (
+            <NavLink to="/technician/tickets" className={linkClass}>
+              Technician
+            </NavLink>
+          )}
+
+          {/* Admin Tickets - ADMIN and SYSTEM_ADMIN only */}
+          {(isAdmin || isSystemAdmin) && (
+            <NavLink to="/admin/tickets" className={linkClass}>
+              Admin Tickets
+            </NavLink>
+          )}
+
+          {/* Notifications - available to all authenticated users */}
+          {isAuthenticated && (
+            <NavLink to="/notifications" className={linkClass}>
+              Notifications
+            </NavLink>
+          )}
+
+          {/* System Admin Dashboard - SYSTEM_ADMIN only */}
+          {isSystemAdmin && (
+            <NavLink to="/system-admin/dashboard" className={linkClass}>
+              System Admin
+            </NavLink>
+          )}
+
+          {/* Logout Button - authenticated users only */}
+          {isAuthenticated && (
+            <button onClick={handleLogout} className="nav-link logout-btn">
+              LOGOUT
+            </button>
+          )}
         </nav>
       </div>
     </header>

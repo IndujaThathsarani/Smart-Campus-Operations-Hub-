@@ -43,3 +43,16 @@
   color: #fff;
   background: rgba(255, 255, 255, 0.14);
 }
+
+.logout-btn {
+  border: none;
+  cursor: pointer;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  font-weight: 500;
+}
+
+.logout-btn:hover {
+  color: #fff;
+  background: rgba(239, 68, 68, 0.25);
+}
