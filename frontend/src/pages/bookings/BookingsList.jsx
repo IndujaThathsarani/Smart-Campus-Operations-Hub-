@@ -104,8 +104,8 @@ const BookingsList = () => {
         }
     };
 
-    const filteredBookings = filter === 'ALL' 
-        ? bookings 
+    const filteredBookings = filter === 'ALL'
+        ? bookings
         : bookings.filter(b => b.status === filter);
 
     const formatDateTime = (value) => {

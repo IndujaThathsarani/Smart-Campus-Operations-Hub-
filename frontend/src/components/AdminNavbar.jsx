@@ -13,7 +13,7 @@ export default function AdminNavbar() {
           <Link to="/resources" className="nav-link">
             Resources
           </Link>
-          <Link to="/bookings" className="nav-link">
+          <Link to="/admin/bookings" className="nav-link">
             Bookings
           </Link>
           <Link to="/notifications" className="nav-link">

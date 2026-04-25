@@ -36,13 +36,6 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Admin Catalogue - ADMIN and SYSTEM_ADMIN only */}
-          {(isAdmin || isSystemAdmin) && (
-            <NavLink to="/admin/catalogue" className={linkClass}>
-              Admin Catalogue
-            </NavLink>
-          )}
-
           {/* Bookings - all authenticated users except TECHNICIAN */}
           {isAuthenticated && (isUser || isAdmin || isSystemAdmin) && (
             <NavLink to="/bookings" className={linkClass}>
@@ -57,31 +50,10 @@ export default function Navbar() {
             </NavLink>
           )}
 
-          {/* Technician Dashboard - TECHNICIAN, ADMIN, SYSTEM_ADMIN only */}
-          {(isTechnician || isAdmin || isSystemAdmin) && (
-            <NavLink to="/technician/tickets" className={linkClass}>
-              Technician
-            </NavLink>
-          )}
-
-          {/* Admin Tickets - ADMIN and SYSTEM_ADMIN only */}
-          {(isAdmin || isSystemAdmin) && (
-            <NavLink to="/admin/tickets" className={linkClass}>
-              Admin Tickets
-            </NavLink>
-          )}
-
           {/* Notifications - available to all authenticated users */}
           {isAuthenticated && (
             <NavLink to="/notifications" className={linkClass}>
               Notifications
-            </NavLink>
-          )}
-
-          {/* System Admin Dashboard - SYSTEM_ADMIN only */}
-          {isSystemAdmin && (
-            <NavLink to="/system-admin/dashboard" className={linkClass}>
-              System Admin
             </NavLink>
           )}
 
