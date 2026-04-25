@@ -367,10 +367,6 @@ export default function AdminTicketsPage() {
     [clearInlineCardAction, getAssignDraft, pushToast, refreshTickets],
   )
 
-  const openDeleteDialog = useCallback((ticket) => {
-    setDeleteTarget(ticket)
-  }, [])
-
   const closeDeleteDialog = useCallback(() => {
     if (deleteSavingId) return
     setDeleteTarget(null)
@@ -590,17 +586,7 @@ export default function AdminTicketsPage() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {actionMode === 'all' ? (
-                    <button
-                      type="button"
-                      onClick={() => openDeleteDialog(ticket)}
-                      aria-label={`Delete ticket ${displayTicketId(ticket)}`}
-                      title="Delete ticket"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
-                    >
-                      <Trash2 className="h-4 w-4" strokeWidth={2.2} />
-                    </button>
-                  ) : actionMode === 'status' ? (
+                  {actionMode === 'status' ? (
                     <button
                       type="button"
                       onClick={() => toggleInlineCardAction(ticketKey, 'status')}
@@ -618,19 +604,10 @@ export default function AdminTicketsPage() {
                       <Ban className="h-4 w-4" strokeWidth={2.2} />
                       Reject
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => toggleInlineCardAction(ticketKey, 'assign')}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100"
-                    >
-                      <User className="h-4 w-4" strokeWidth={2.2} />
-                      Assign
-                    </button>
-                  )}
+                  ) : null}
                 </div>
 
-                {renderActionPanel(ticket, ticketKey, cardAction)}
+                {renderActionPanel(ticket, ticketKey, actionMode === 'assign' ? 'assign' : cardAction)}
               </div>
 
               <div className="flex shrink-0 flex-col items-end gap-2">
@@ -646,6 +623,17 @@ export default function AdminTicketsPage() {
                 <p className="text-right text-sm text-gray-600">
                   <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
                 </p>
+                {actionMode === 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(ticket)}
+                    aria-label={`Delete ticket ${displayTicketId(ticket)}`}
+                    title="Delete ticket"
+                    className="inline-flex h-9 w-9 items-center justify-center self-end rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2.2} />
+                  </button>
+                )}
               </div>
             </div>
           </div>

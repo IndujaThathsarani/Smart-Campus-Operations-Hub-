@@ -12,16 +12,18 @@ export default function TicketWorkflowBar({ status, rejectReason, compact = fals
     return (
       <div className="mt-0" aria-label="Ticket status">
         <div
-          className={`border border-red-200 bg-red-50 ${
-            compact ? 'rounded-full px-2.5 py-1' : 'rounded-2xl px-4 py-3'
-          }`}
+          className={
+            compact
+              ? 'inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700'
+              : 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3'
+          }
         >
           <span
-            className={`inline-flex items-center gap-1 rounded-full bg-red-100 font-semibold text-red-800 ${
-              compact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'
+            className={`inline-flex items-center gap-1 font-semibold ${
+              compact ? 'text-xs text-red-700' : 'rounded-full bg-red-100 px-3 py-1 text-sm text-red-800'
             }`}
           >
-            <AlertCircle className={compact ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={2.2} />
+            <AlertCircle className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.2} />
             Rejected
           </span>
           {!compact &&
