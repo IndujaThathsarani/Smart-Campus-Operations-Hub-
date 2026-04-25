@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Eye, ImageIcon, MessageSquareText, Pencil, RefreshCcw, Ticket, Trash2, Wrench } from 'lucide-react'
+import { Eye, ImageIcon, MessageSquareText, Pencil, Ticket, Trash2, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
 import { useAuth } from '../../context/AuthContext'
 import { useActionToasts } from '../../hooks/useActionToasts'
@@ -439,33 +439,20 @@ export default function TechnicianTicketsDashboard() {
   return (
     <section className="relative w-full max-w-none">
       <ActionToasts toasts={toasts} onDismiss={dismissToast} />
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-5 flex flex-col gap-3">
         <div className="min-w-0 flex-1 sm:pr-4">
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
+          <p className="mb-1.5 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
             Technician dashboard
           </p>
           <h1 className="inline-flex items-center gap-2 text-3xl font-semibold text-slate-900">
             <Wrench className="h-7 w-7 text-sky-700" strokeWidth={2.2} />
             Maintenance ticket overview
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-            See the latest work queue, ticket status breakdowns, and assigned maintenance requests in one place.
-          </p>
-        </div>
-        <div className="flex flex-none flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={loadTickets}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-md"
-          >
-            <RefreshCcw className="h-4 w-4" strokeWidth={2.2} />
-            Refresh list
-          </button>
         </div>
       </header>
 
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           {STATUS_TABS.map((status) => {
             const isActive = activeStatus === status
             const label = status === 'ASSIGNED' ? 'Assigned tickets' : formatEnum(status)
@@ -479,7 +466,7 @@ export default function TechnicianTicketsDashboard() {
                 key={status}
                 type="button"
                 onClick={() => setActiveStatus(status)}
-                className={`rounded-lg border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                className={`rounded-lg border px-4 py-2.5 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
                   isActive
                     ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                     : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
@@ -492,7 +479,7 @@ export default function TechnicianTicketsDashboard() {
                 >
                   {label}
                 </p>
-                <p className={`mt-2 text-3xl font-semibold ${isActive ? 'text-white' : ''}`}>
+                <p className={`mt-1.5 text-2xl font-semibold leading-none ${isActive ? 'text-white' : ''}`}>
                   {value}
                 </p>
               </button>
