@@ -2,11 +2,16 @@ package com.smartcampus.auth;
 
 import com.smartcampus.dto.RoleUpdateRequest;
 import com.smartcampus.dto.UserStatusUpdateRequest;
+import com.smartcampus.model.Role;
 import com.smartcampus.model.User;
 import com.smartcampus.repository.UserRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/system-admin")
@@ -28,10 +33,30 @@ public class SystemAdminController {
             @PathVariable String id,
             @RequestBody RoleUpdateRequest request
     ) {
+        if (request.getRoles() == null || request.getRoles().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one role is required");
+        }
+
+        Set<Role> mappedRoles = new LinkedHashSet<>();
+        for (String roleName : request.getRoles()) {
+            if (roleName == null || roleName.isBlank()) {
+                continue;
+            }
+            try {
+                mappedRoles.add(Role.valueOf(roleName.trim()));
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role: " + roleName);
+            }
+        }
+
+        if (mappedRoles.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one valid role is required");
+        }
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        user.setRoles(request.getRoles());
+        user.setRoles(mappedRoles);
         return userRepository.save(user);
     }
 

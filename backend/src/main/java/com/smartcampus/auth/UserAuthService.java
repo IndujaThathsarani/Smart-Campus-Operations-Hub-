@@ -34,10 +34,13 @@ public class UserAuthService {
             user.setProfilePicture(profilePicture);
             user.setProvider("GOOGLE");
             user.setProviderId(providerId);
-            
-            // Sync roles with role service mapping
-            Role assignedRole = roleService.getRoleForEmail(email);
-            user.setRoles(Set.of(assignedRole));
+
+            // Preserve roles already saved in DB by system admin updates.
+            // Only assign from mapping when a legacy user has no role set.
+            if (user.getRoles() == null || user.getRoles().isEmpty()) {
+                Role assignedRole = roleService.getRoleForEmail(email);
+                user.setRoles(Set.of(assignedRole));
+            }
             
             user.setUpdatedAt(Instant.now());
             return userRepository.save(user);
