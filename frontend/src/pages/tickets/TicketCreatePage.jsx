@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 import { useResources } from '../../hooks/useResources'
@@ -18,6 +18,7 @@ function formatSubmitError(err) {
 export default function TicketCreatePage() {
   const navigate = useNavigate()
 
+  const [subject, setSubject] = useState('')
   const [location, setLocation] = useState('')
   const [resourceId, setResourceId] = useState('')
   const [category, setCategory] = useState('GENERAL')
@@ -79,9 +80,10 @@ export default function TicketCreatePage() {
   async function handleSubmit(e) {
     e.preventDefault()
     const hasLocation = location.trim().length > 0
+    const hasSubject = subject.trim().length > 0
     const hasContact = contactEmail.trim().length > 0 || contactPhone.trim().length > 0
 
-    if (!hasLocation || !hasContact || description.trim().length < 10) {
+    if (!hasLocation || !hasContact || description.trim().length < 10 || !hasSubject) {
       return
     }
 
@@ -89,6 +91,7 @@ export default function TicketCreatePage() {
     setSubmitError(null)
 
     const formData = new FormData()
+    formData.append('subject', subject.trim())
     formData.append('location', location.trim())
     // Append selected resource ID if chosen (links ticket to resource in backend)
     if (resourceId) formData.append('resourceId', resourceId)
@@ -111,6 +114,7 @@ export default function TicketCreatePage() {
 
       attachments.forEach((a) => URL.revokeObjectURL(a.url))
       setAttachments([])
+      setSubject('')
       setLocation('')
       setResourceId('')
       setCategory('GENERAL')
@@ -127,6 +131,7 @@ export default function TicketCreatePage() {
   }
 
   const canSubmit =
+    subject.trim().length > 0 &&
     location.trim().length > 0 &&
     (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
     description.trim().length >= 10
@@ -157,6 +162,20 @@ export default function TicketCreatePage() {
         <h2 className="mb-3 text-base font-semibold text-gray-900">Report details</h2>
 
         <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="subject" className="text-sm font-medium text-gray-700">Subject</label>
+            <input
+              id="subject"
+              type="text"
+              autoComplete="off"
+              placeholder="Brief summary of the issue"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+            />
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label htmlFor="resourceId" className="text-sm font-medium text-gray-700">Resource (optional)</label>
             <select
