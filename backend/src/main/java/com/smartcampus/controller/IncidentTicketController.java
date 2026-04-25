@@ -4,7 +4,11 @@ import com.smartcampus.dto.TicketAssignmentUpdateRequest;
 import com.smartcampus.dto.TicketCommentRequest;
 import com.smartcampus.dto.TicketCommentVisibilityRequest;
 import com.smartcampus.dto.TicketStatusUpdateRequest;
+import com.smartcampus.dto.TechnicianOptionResponse;
 import com.smartcampus.model.IncidentTicket;
+import com.smartcampus.model.Role;
+import com.smartcampus.model.User;
+import com.smartcampus.repository.UserRepository;
 import com.smartcampus.service.IncidentTicketService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Comparator;
 import java.util.List;
 
 @RestController
@@ -30,9 +35,14 @@ import java.util.List;
 public class IncidentTicketController {
 
     private final IncidentTicketService incidentTicketService;
+    private final UserRepository userRepository;
 
-    public IncidentTicketController(IncidentTicketService incidentTicketService) {
+    public IncidentTicketController(
+            IncidentTicketService incidentTicketService,
+            UserRepository userRepository
+    ) {
         this.incidentTicketService = incidentTicketService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -42,6 +52,27 @@ public class IncidentTicketController {
             @RequestParam(required = false) String category
     ) {
         return ResponseEntity.ok(incidentTicketService.findAllFiltered(status, priority, category));
+    }
+
+    @GetMapping("/technicians")
+    public ResponseEntity<List<TechnicianOptionResponse>> listTechnicians() {
+        List<TechnicianOptionResponse> technicians = userRepository.findAll()
+                .stream()
+                .filter(User::isActive)
+                .filter(user -> user.getRoles() != null && user.getRoles().contains(Role.ROLE_TECHNICIAN))
+                .map(user -> {
+                    String label = technicianLabel(user);
+                    return new TechnicianOptionResponse(
+                            user.getId(),
+                            user.getName(),
+                            user.getEmail(),
+                            label
+                    );
+                })
+                .sorted(Comparator.comparing(TechnicianOptionResponse::getLabel, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+
+        return ResponseEntity.ok(technicians);
     }
 
     // Create incident ticket with optional resource linking (receives resourceId from frontend form)
@@ -131,5 +162,29 @@ public class IncidentTicketController {
     public ResponseEntity<Void> delete(@PathVariable("ticketId") String ticketId) {
         incidentTicketService.deleteById(ticketId);
         return ResponseEntity.noContent().build();
+    }
+
+    private static String technicianLabel(User user) {
+        String name = blankToNull(user.getName());
+        String email = blankToNull(user.getEmail());
+
+        if (name != null && email != null) {
+            return name + " (" + email + ")";
+        }
+        if (name != null) {
+            return name;
+        }
+        if (email != null) {
+            return email;
+        }
+        return user.getId();
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
