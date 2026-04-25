@@ -327,9 +327,9 @@ export default function AdminCatalogue() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white px-4 py-5 text-slate-900 shadow-xl shadow-slate-200/70 sm:px-6 lg:px-8">
+    <section className="relative h-full min-h-0 overflow-y-auto rounded-[28px] border border-slate-200 bg-white px-4 py-5 text-slate-900 shadow-xl shadow-slate-200/70 sm:px-6 lg:px-8">
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-5">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-5 pb-6">
         <header className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
