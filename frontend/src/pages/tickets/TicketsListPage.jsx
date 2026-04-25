@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
+import TicketSlaBadges from '../../components/TicketSlaBadges'
 import { useAuth } from '../../context/AuthContext'
 import { useResources } from '../../hooks/useResources'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
-import { apiGet, apiPostFormData, apiSend } from '../../services/apiClient'
+import { API_BASE_URL, apiGet, apiPostFormData, apiSend } from '../../services/apiClient'
 
 const TICKET_FILTERS = [
   { id: 'CREATE', label: 'Create new ticket' },
@@ -71,6 +72,11 @@ function displaySubject(ticket) {
   const value = ticket?.subject
   if (!value || !String(value).trim()) return 'Untitled incident'
   return String(value).trim()
+}
+
+function buildAttachmentUrl(ticketId, filename) {
+  if (!ticketId || !filename) return ''
+  return `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/attachments/${encodeURIComponent(filename)}`
 }
 
 function formatSubmitError(err) {
@@ -186,6 +192,7 @@ export default function TicketsListPage() {
   const attachmentsRef = useRef(attachments)
   const [submitPhase, setSubmitPhase] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
+  const [clockTick, setClockTick] = useState(() => Date.now())
 
   const loadTickets = useCallback(async () => {
     setLoading(true)
@@ -204,6 +211,13 @@ export default function TicketsListPage() {
   useEffect(() => {
     loadTickets()
   }, [loadTickets])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setClockTick(Date.now())
+    }, 60000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -725,8 +739,11 @@ export default function TicketsListPage() {
 
           {!loading && !error && visibleTickets.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {visibleTickets.map((ticket) => {
+          {visibleTickets.map((ticket, index) => {
             const visibleComments = (ticket.comments || []).filter((comment) => !comment.hidden)
+            const attachmentFiles = Array.isArray(ticket.attachmentFileNames)
+              ? ticket.attachmentFileNames.filter(Boolean)
+              : []
             const commentDraft = commentDrafts[ticket.id] || ''
             const isCommentSaving = commentSavingTicketId === ticket.id
             const isExpanded = Boolean(expandedTickets[ticket.id])
@@ -734,7 +751,8 @@ export default function TicketsListPage() {
             return (
               <li
                 key={ticket.id}
-                className="mx-auto w-full rounded-md border border-gray-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950/5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[60%]"
+                className="ticket-enter mx-auto w-full rounded-md border border-gray-200 bg-white px-4 py-3 shadow-sm transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-slate-900 hover:bg-slate-950/5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.18)] lg:w-[60%]"
+                style={{ animationDelay: `${index * 90}ms` }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -776,6 +794,15 @@ export default function TicketsListPage() {
                     <p className="text-right text-sm text-gray-600">
                       <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
                     </p>
+                    <TicketSlaBadges
+                      priority={ticket.priority}
+                      createdAt={ticket.createdAt}
+                      firstResponseAt={ticket.firstResponseAt}
+                      resolvedAt={ticket.resolvedAt}
+                      status={ticket.status}
+                      now={clockTick}
+                      className="justify-end"
+                    />
                   </div>
                 </div>
 
@@ -787,6 +814,39 @@ export default function TicketsListPage() {
                       <span>{ticket.location || '—'}</span>
                     </p>
                     <p className="mt-2 text-base leading-7 text-gray-800">{excerpt(ticket.description, 100)}</p>
+
+                    {attachmentFiles.length > 0 && (
+                      <div className="mt-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="m-0 text-sm font-semibold text-slate-900">Evidence images</p>
+                          <span className="text-xs text-slate-500">
+                            {attachmentFiles.length} {attachmentFiles.length === 1 ? 'image' : 'images'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                          {attachmentFiles.map((filename, attachmentIndex) => {
+                            const src = buildAttachmentUrl(ticket.id, filename)
+                            return (
+                              <a
+                                key={`${ticket.id}-${filename}-${attachmentIndex}`}
+                                href={src}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:shadow-md"
+                                title={filename}
+                              >
+                                <img
+                                  src={src}
+                                  alt={`Attachment ${attachmentIndex + 1}`}
+                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                  loading="lazy"
+                                />
+                              </a>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-3">
                       <div className="mb-2 flex items-center justify-between gap-3">

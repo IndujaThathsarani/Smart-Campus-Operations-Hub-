@@ -141,7 +141,7 @@ public class IncidentTicketService {
 
         List<String> storedNames = new ArrayList<>();
         if (!incoming.isEmpty()) {
-            Path dir = Paths.get(uploadDir).resolve(ticketId).normalize();
+            Path dir = resolveUploadBaseDir().resolve(ticketId).normalize();
             try {
                 Files.createDirectories(dir);
             } catch (IOException e) {
@@ -404,13 +404,36 @@ public class IncidentTicketService {
         if (!incidentTicketRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found");
         }
-        Path base = Paths.get(uploadDir).normalize().toAbsolutePath();
+        Path base = resolveUploadBaseDir();
         Path ticketDir = base.resolve(id).normalize();
         if (!ticketDir.startsWith(base)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket id");
         }
         deleteUploadDirectoryIfPresent(ticketDir);
         incidentTicketRepository.deleteById(id);
+    }
+
+    public Path resolveAttachmentPath(String ticketIdRaw, String filenameRaw) {
+        String ticketId = blankToNull(ticketIdRaw);
+        String filename = blankToNull(filenameRaw);
+        if (ticketId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticket id is required");
+        }
+        if (filename == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filename is required");
+        }
+
+        Path base = resolveUploadBaseDir();
+        Path ticketDir = base.resolve(ticketId).normalize();
+        if (!ticketDir.startsWith(base)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket id");
+        }
+
+        Path file = ticketDir.resolve(sanitizeFilename(filename)).normalize();
+        if (!file.startsWith(ticketDir) || !Files.exists(file) || !Files.isRegularFile(file)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
+        }
+        return file;
     }
 
     private static void deleteUploadDirectoryIfPresent(Path dir) {
@@ -485,6 +508,24 @@ public class IncidentTicketService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not generate ticket number");
         }
         return counter.seq;
+    }
+
+    private Path resolveUploadBaseDir() {
+        List<Path> candidates = List.of(
+                Paths.get(uploadDir),
+                Paths.get("backend").resolve(uploadDir),
+                Paths.get("..").resolve(uploadDir),
+                Paths.get("..").resolve("backend").resolve(uploadDir)
+        );
+
+        for (Path candidate : candidates) {
+            Path absolute = candidate.normalize().toAbsolutePath();
+            if (Files.exists(absolute)) {
+                return absolute;
+            }
+        }
+
+        return Paths.get(uploadDir).normalize().toAbsolutePath();
     }
 
     private static class TicketCounter {

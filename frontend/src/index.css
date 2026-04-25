@@ -1,4 +1,44 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+@keyframes ticket-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.94) rotateX(12deg);
+    filter: blur(10px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.01) rotateX(0deg);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    filter: blur(0);
+  }
+}
+
+.ticket-enter {
+  transform-origin: center top;
+  will-change: transform, opacity, filter;
+  animation: ticket-enter 760ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket-enter {
+    animation: none;
+  }
+}
