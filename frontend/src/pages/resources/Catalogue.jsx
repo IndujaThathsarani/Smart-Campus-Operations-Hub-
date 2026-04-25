@@ -131,19 +131,33 @@ function createDateTime(date, timeValue) {
   )
 }
 
-function getResourceBookings(bookings, resourceId) {
-  if (!resourceId) return []
+function normalizeIdentifier(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim().toLowerCase()
+}
+
+function getResourceBookings(bookings, resource) {
+  if (!resource) return []
+
+  const validResourceIdentifiers = new Set([
+    normalizeIdentifier(resource.id),
+    normalizeIdentifier(resource.name),
+  ])
+
+  validResourceIdentifiers.delete('')
+  if (validResourceIdentifiers.size === 0) return []
 
   return bookings.filter((booking) => {
-    if (booking.resourceId !== resourceId) return false
+    const bookingResourceIdentifier = normalizeIdentifier(booking.resourceId)
+    if (!validResourceIdentifiers.has(bookingResourceIdentifier)) return false
     return booking.status !== 'REJECTED' && booking.status !== 'CANCELLED'
   })
 }
 
-function getBookingDateMap(bookings, resourceId) {
+function getBookingDateMap(bookings, resource) {
   const bookingDateMap = new Map()
 
-  getResourceBookings(bookings, resourceId).forEach((booking) => {
+  getResourceBookings(bookings, resource).forEach((booking) => {
     const start = new Date(booking.startTime)
     const end = new Date(booking.endTime)
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return
@@ -419,8 +433,8 @@ export default function Catalogue() {
   }, [filteredResources, selectedCalendarResourceId])
 
   const bookingDateMap = useMemo(() => {
-    return getBookingDateMap(bookings, selectedCalendarResourceId)
-  }, [bookings, selectedCalendarResourceId])
+    return getBookingDateMap(bookings, selectedCalendarResource)
+  }, [bookings, selectedCalendarResource])
 
   const bookedDateKeys = useMemo(() => {
     return new Set(bookingDateMap.keys())
@@ -466,8 +480,30 @@ export default function Catalogue() {
     }
 
     const today = new Date()
-    if (isDateWithinResourceRange(selectedCalendarResource, today)) {
-      setSelectedCalendarDateKey(toDateKey(today))
+    const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    const rangeStart = selectedCalendarResource.availabilityStartDate
+      ? new Date(`${selectedCalendarResource.availabilityStartDate}T00:00:00`)
+      : null
+    const rangeEnd = selectedCalendarResource.availabilityEndDate
+      ? new Date(`${selectedCalendarResource.availabilityEndDate}T00:00:00`)
+      : null
+
+    if (
+      rangeStart &&
+      rangeEnd &&
+      !Number.isNaN(rangeStart.getTime()) &&
+      !Number.isNaN(rangeEnd.getTime())
+    ) {
+      const nextValidDate = todayAtMidnight > rangeStart ? todayAtMidnight : rangeStart
+      if (nextValidDate <= rangeEnd) {
+        setSelectedCalendarDateKey(toDateKey(nextValidDate))
+        return
+      }
+    }
+
+    if (isDateWithinResourceRange(selectedCalendarResource, todayAtMidnight)) {
+      setSelectedCalendarDateKey(toDateKey(todayAtMidnight))
       return
     }
 
@@ -476,7 +512,7 @@ export default function Catalogue() {
       return
     }
 
-    setSelectedCalendarDateKey('')
+    setSelectedCalendarDateKey(toDateKey(todayAtMidnight))
   }, [selectedCalendarDateKey, selectedCalendarResource])
 
   const selectedCalendarDate = useMemo(() => {
@@ -860,7 +896,7 @@ export default function Catalogue() {
                       </td>
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                         <button
-                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.name || resource.id)}&location=${encodeURIComponent(resource.location || '')}&returnTo=${encodeURIComponent('/resources')}`)}
+                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.id)}&location=${encodeURIComponent(resource.location || '')}&returnTo=${encodeURIComponent('/resources')}`)}
                           disabled={resource.status !== 'ACTIVE'}
                           style={{
                             padding: '0.3rem 0.75rem',
@@ -1101,20 +1137,21 @@ export default function Catalogue() {
                 </div>
               </div>
 
-              {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate) ? (
-                <div style={{
-                  borderRadius: '10px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  padding: '0.65rem',
-                  fontSize: '0.75rem',
-                  color: '#475569',
-                  lineHeight: 1.45,
-                }}>
-                  This date is outside the resource availability range.
-                </div>
-              ) : (
-                <>
+              <>
+                {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate) ? (
+                  <div style={{
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    padding: '0.65rem',
+                    fontSize: '0.75rem',
+                    color: '#475569',
+                    lineHeight: 1.45,
+                  }}>
+                    This date is outside the resource availability range. Existing bookings are shown below.
+                  </div>
+                ) : null}
+
                   <div style={{
                     borderRadius: '10px',
                     background: '#fff1f2',
@@ -1188,7 +1225,9 @@ export default function Catalogue() {
                       )
                     ) : (
                       <div style={{ fontSize: '0.74rem', color: '#166534' }}>
-                        Daily availability hours are not set for this resource.
+                        {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate)
+                          ? 'Selected date is outside configured availability, so no free slot can be computed.'
+                          : 'Daily availability hours are not set for this resource.'}
                       </div>
                     )}
                   </div>
@@ -1261,7 +1300,9 @@ export default function Catalogue() {
                       </div>
                     ) : (
                       <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                        No bookable one-hour slots left for this date.
+                        {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate)
+                          ? 'Selected date is outside configured availability, so no bookable slots are available.'
+                          : 'No bookable one-hour slots left for this date.'}
                       </div>
                     )}
 
@@ -1276,8 +1317,7 @@ export default function Catalogue() {
                       </div>
                     ) : null}
                   </div>
-                </>
-              )}
+              </>
             </div>
           </aside>
         </div>
