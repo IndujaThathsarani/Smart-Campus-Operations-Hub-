@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 let toastIdSeed = 0
 
-export function useActionToasts(defaultDuration = 2800) {
+export function useActionToasts(defaultDuration = 0) {
   const [toasts, setToasts] = useState([])
   const timersRef = useRef(new Map())
 
@@ -19,10 +19,12 @@ export function useActionToasts(defaultDuration = 2800) {
     ({ title, message, variant = 'success', duration = defaultDuration }) => {
       const id = ++toastIdSeed
       setToasts((prev) => [...prev, { id, title, message, variant }])
-      const timer = window.setTimeout(() => {
-        dismissToast(id)
-      }, duration)
-      timersRef.current.set(id, timer)
+      if (duration > 0) {
+        const timer = window.setTimeout(() => {
+          dismissToast(id)
+        }, duration)
+        timersRef.current.set(id, timer)
+      }
       return id
     },
     [defaultDuration, dismissToast],

@@ -1,3 +1,5 @@
+import { MessageSquareText, Wrench } from 'lucide-react'
+
 const SLA_TARGETS_MINUTES = {
   URGENT: { firstResponse: 30, resolution: 4 * 60 },
   HIGH: { firstResponse: 2 * 60, resolution: 24 * 60 },
@@ -132,12 +134,14 @@ export default function TicketSlaBadges({
         className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toneClasses(firstResponse.tone)}`}
         title="Time to first response"
       >
+        <MessageSquareText className="mr-1 h-3.5 w-3.5" strokeWidth={2.2} />
         First response: {firstResponse.text}
       </span>
       <span
         className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${toneClasses(resolution.tone)}`}
         title="Time to resolution"
       >
+        <Wrench className="mr-1 h-3.5 w-3.5" strokeWidth={2.2} />
         Resolution: {resolution.text}
       </span>
     </div>

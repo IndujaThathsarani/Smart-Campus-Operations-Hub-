@@ -1,80 +1,84 @@
-import {
-  FaCircleCheck,
-  FaCircleExclamation,
-  FaCircleInfo,
-  FaCircleXmark,
-  FaXmark,
-} from 'react-icons/fa6'
+import { AlertTriangle, Check, Info, X } from 'lucide-react'
 
 const VARIANT_STYLES = {
   success: {
     border: 'border-emerald-200',
-    bg: 'bg-emerald-50',
-    title: 'text-emerald-950',
-    message: 'text-emerald-800',
-    icon: FaCircleCheck,
-    iconWrap: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+    panel: 'bg-white',
+    title: 'text-slate-900',
+    message: 'text-slate-500',
+    icon: Check,
+    iconWrap: 'border-emerald-300 text-emerald-600 bg-emerald-50',
+    button: 'bg-emerald-600 hover:bg-emerald-500 focus-visible:ring-emerald-200',
   },
   error: {
     border: 'border-rose-200',
-    bg: 'bg-rose-50',
-    title: 'text-rose-950',
-    message: 'text-rose-800',
-    icon: FaCircleXmark,
-    iconWrap: 'bg-rose-100 text-rose-700 ring-rose-200',
+    panel: 'bg-white',
+    title: 'text-slate-900',
+    message: 'text-slate-500',
+    icon: X,
+    iconWrap: 'border-rose-300 text-rose-600 bg-rose-50',
+    button: 'bg-rose-600 hover:bg-rose-500 focus-visible:ring-rose-200',
   },
   warning: {
     border: 'border-amber-200',
-    bg: 'bg-amber-50',
-    title: 'text-amber-950',
-    message: 'text-amber-800',
-    icon: FaCircleExclamation,
-    iconWrap: 'bg-amber-100 text-amber-700 ring-amber-200',
+    panel: 'bg-white',
+    title: 'text-slate-900',
+    message: 'text-slate-500',
+    icon: AlertTriangle,
+    iconWrap: 'border-amber-300 text-amber-600 bg-amber-50',
+    button: 'bg-amber-500 hover:bg-amber-400 focus-visible:ring-amber-200',
   },
   info: {
     border: 'border-sky-200',
-    bg: 'bg-sky-50',
-    title: 'text-sky-950',
-    message: 'text-sky-800',
-    icon: FaCircleInfo,
-    iconWrap: 'bg-sky-100 text-sky-700 ring-sky-200',
+    panel: 'bg-white',
+    title: 'text-slate-900',
+    message: 'text-slate-500',
+    icon: Info,
+    iconWrap: 'border-sky-300 text-sky-600 bg-sky-50',
+    button: 'bg-sky-600 hover:bg-sky-500 focus-visible:ring-sky-200',
   },
 }
 
 export default function ActionToasts({ toasts, onDismiss }) {
   if (!toasts?.length) return null
 
+  const toast = toasts[0]
+  const styles = VARIANT_STYLES[toast.variant] || VARIANT_STYLES.success
+  const Icon = styles.icon || Info
+
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
-      {toasts.map((toast) => {
-        const styles = VARIANT_STYLES[toast.variant] || VARIANT_STYLES.success
-        const Icon = styles.icon || FaCircleInfo
-        return (
-          <button
-            key={toast.id}
-            type="button"
-            onClick={() => onDismiss?.(toast.id)}
-            className={`pointer-events-auto toast-enter rounded-2xl border ${styles.border} ${styles.bg} px-4 py-3 text-left shadow-[0_18px_36px_rgba(15,23,42,0.16)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_rgba(15,23,42,0.2)]`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 px-4 backdrop-blur-[2px]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`action-toast-title-${toast.id}`}
+        aria-describedby={toast.message ? `action-toast-message-${toast.id}` : undefined}
+        className={`toast-enter w-full max-w-md rounded-[2rem] border ${styles.border} ${styles.panel} px-6 py-8 text-center shadow-[0_28px_60px_rgba(15,23,42,0.22)] sm:px-8`}
+      >
+        <div
+          className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full border-4 ${styles.iconWrap}`}
+        >
+          <Icon className="h-12 w-12" strokeWidth={2.5} />
+        </div>
+        <h2 id={`action-toast-title-${toast.id}`} className={`mt-6 text-4xl font-semibold ${styles.title}`}>
+          {toast.title}
+        </h2>
+        {toast.message && (
+          <p
+            id={`action-toast-message-${toast.id}`}
+            className={`mx-auto mt-4 max-w-sm text-lg leading-8 ${styles.message}`}
           >
-            <div className="flex items-start gap-3">
-              <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${styles.iconWrap}`}
-              >
-                <Icon className="text-lg" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className={`m-0 text-sm font-semibold ${styles.title}`}>{toast.title}</p>
-                {toast.message && (
-                  <p className={`mt-1 m-0 text-sm leading-5 ${styles.message}`}>{toast.message}</p>
-                )}
-              </div>
-              <span className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition group-hover:text-slate-700">
-                <FaXmark className="text-sm" />
-              </span>
-            </div>
-          </button>
-        )
-      })}
+            {toast.message}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => onDismiss?.(toast.id)}
+          className={`mt-8 inline-flex min-h-14 w-full items-center justify-center rounded-2xl border-b-4 border-slate-900 px-5 text-xl font-semibold text-white shadow-[0_8px_18px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 ${styles.button}`}
+        >
+          OK
+        </button>
+      </div>
     </div>
   )
 }
