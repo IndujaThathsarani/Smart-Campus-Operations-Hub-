@@ -4,13 +4,14 @@ import Navbar from '../components/Navbar'
 
 export default function MainLayout() {
   const location = useLocation()
-  const adminFullBleed = location.pathname.startsWith('/admin/')
+  const adminFullBleed = location.pathname.startsWith('/admin/') && !location.pathname.startsWith('/admin/bookings')
   const bookingsWide = location.pathname.startsWith('/bookings')
+  const adminBookings = location.pathname.startsWith('/admin/bookings')
 
   return (
     <div className="app-shell">
-      {adminFullBleed ? <AdminNavbar /> : <Navbar />}
-      <main className={adminFullBleed ? 'app-main app-main--full' : bookingsWide ? 'app-main app-main--wide' : 'app-main'}>
+      {adminFullBleed || adminBookings ? <AdminNavbar /> : <Navbar />}
+      <main className={adminBookings ? 'app-main app-main--wide' : adminFullBleed ? 'app-main app-main--full' : bookingsWide ? 'app-main app-main--wide' : 'app-main'}>
         {adminFullBleed ? (
           <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
             <Outlet />
