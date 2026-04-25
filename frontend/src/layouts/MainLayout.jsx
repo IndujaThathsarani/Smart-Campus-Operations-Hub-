@@ -1,6 +1,9 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AdminNavbar from '../components/AdminNavbar'
 import Navbar from '../components/Navbar'
+import SystemAdminNavbar from '../components/SystemAdminNavbar'
+import TechnicianNavbar from '../components/TechnicianNavbar'
 
 export default function MainLayout() {
   const location = useLocation()
@@ -13,7 +16,7 @@ export default function MainLayout() {
       {adminFullBleed || adminBookings ? <AdminNavbar /> : <Navbar />}
       <main className={adminBookings ? 'app-main app-main--wide' : adminFullBleed ? 'app-main app-main--full' : bookingsWide ? 'app-main app-main--wide' : 'app-main'}>
         {adminFullBleed ? (
-          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-[calc(100vh-4rem)] flex-1 flex-col overflow-hidden bg-[#11192b]">
             <Outlet />
           </div>
         ) : (

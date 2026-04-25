@@ -12,8 +12,11 @@ import com.smartcampus.model.User;
 import com.smartcampus.repository.UserRepository;
 import com.smartcampus.service.IncidentTicketService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -21,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 
@@ -105,6 +110,29 @@ public class IncidentTicketController {
                 files
         );
         return new ResponseEntity<>(created, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/{ticketId}/attachments/{filename:.+}")
+    public ResponseEntity<Resource> getAttachment(
+            @PathVariable("ticketId") String ticketId,
+            @PathVariable("filename") String filename
+    ) {
+        try {
+            Path file = incidentTicketService.resolveAttachmentPath(ticketId, filename);
+            Resource resource = new UrlResource(file.toUri());
+            String contentType = Files.probeContentType(file);
+            MediaType mediaType = contentType != null
+                    ? MediaType.parseMediaType(contentType)
+                    : MediaType.APPLICATION_OCTET_STREAM;
+            return ResponseEntity.ok()
+                    .contentType(mediaType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFileName() + "\"")
+                    .body(resource);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not load attachment");
+        }
     }
 
     @PatchMapping(path = "/{ticketId}/status", consumes = MediaType.APPLICATION_JSON_VALUE)

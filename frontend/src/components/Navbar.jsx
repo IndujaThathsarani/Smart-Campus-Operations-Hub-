@@ -1,9 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import './Navbar.css'
-
-const linkClass = ({ isActive }) =>
-  isActive ? 'nav-link nav-link-active' : 'nav-link'
+import RoleNavbar from './RoleNavbar'
 
 export default function Navbar() {
   const { isAuthenticated, logout, roles } = useAuth()

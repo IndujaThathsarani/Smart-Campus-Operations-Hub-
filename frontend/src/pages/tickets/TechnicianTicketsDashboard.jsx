@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { apiGet, apiSend } from '../../services/apiClient'
+import { API_BASE_URL, apiGet, apiSend } from '../../services/apiClient'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
+import TicketSlaBadges from '../../components/TicketSlaBadges'
 
-const STATUS_TABS = ['OPEN', 'IN_PROGRESS', 'RESOLVED']
+const STATUS_TABS = ['ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
+const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
 
 function formatEnum(value) {
   if (!value) return '—'
@@ -68,6 +70,40 @@ function ticketLabel(ticket) {
   return ticket?.ticketNumber || ticket?.id || '—'
 }
 
+function displaySubject(ticket) {
+  const value = ticket?.subject
+  if (!value || !String(value).trim()) return 'Untitled incident'
+  return String(value).trim()
+}
+
+function buildAttachmentUrl(ticketId, filename) {
+  if (!ticketId || !filename) return ''
+  return `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/attachments/${encodeURIComponent(filename)}`
+}
+
+function technicianAssignmentLabel(user) {
+  if (!user) return ''
+  const name = String(user.name || user.fullName || '').trim()
+  const email = String(user.email || '').trim()
+  if (name && email) return `${name} (${email})`
+  return name || email
+}
+
+function isAssignedToTechnician(ticket, user) {
+  const assignedTo = String(ticket?.assignedTo || '').trim().toLowerCase()
+  if (!assignedTo) return false
+  const label = technicianAssignmentLabel(user).toLowerCase()
+  const email = String(user?.email || '').trim().toLowerCase()
+  const name = String(user?.name || user?.fullName || '').trim().toLowerCase()
+  return (
+    assignedTo === label ||
+    assignedTo === email ||
+    assignedTo === name ||
+    assignedTo.includes(email) ||
+    assignedTo.includes(name)
+  )
+}
+
 function isCommentOwner(comment, user) {
   if (!comment || !user) return false
   if (comment.ownerId && user.id) {
@@ -84,12 +120,23 @@ export default function TechnicianTicketsDashboard() {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [activeStatus, setActiveStatus] = useState('OPEN')
+  const [activeStatus, setActiveStatus] = useState('ASSIGNED')
   const [commentDrafts, setCommentDrafts] = useState({})
   const [commentSavingTicketId, setCommentSavingTicketId] = useState(null)
   const [commentActionId, setCommentActionId] = useState(null)
   const [editCommentId, setEditCommentId] = useState(null)
   const [editDrafts, setEditDrafts] = useState({})
+  const [clockTick, setClockTick] = useState(() => Date.now())
+  const [expandedTickets, setExpandedTickets] = useState({})
+  const [rowActions, setRowActions] = useState({})
+  const [statusDrafts, setStatusDrafts] = useState({})
+  const [statusSavingTicketId, setStatusSavingTicketId] = useState(null)
+  const [statusActionError, setStatusActionError] = useState(null)
+  const [statusActionSuccess, setStatusActionSuccess] = useState(null)
+  const [rejectDrafts, setRejectDrafts] = useState({})
+  const [rejectSavingTicketId, setRejectSavingTicketId] = useState(null)
+  const [rejectActionError, setRejectActionError] = useState(null)
+  const [rejectActionSuccess, setRejectActionSuccess] = useState(null)
 
   const loadTickets = useCallback(async () => {
     setLoading(true)
@@ -109,33 +156,151 @@ export default function TechnicianTicketsDashboard() {
     loadTickets()
   }, [loadTickets])
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setClockTick(Date.now())
+    }, 60000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const technicianLabel = useMemo(() => technicianAssignmentLabel(user), [user])
+
+  const assignedTickets = useMemo(
+    () => tickets.filter((ticket) => isAssignedToTechnician(ticket, user)),
+    [tickets, user],
+  )
+
   const counts = useMemo(() => {
-    return tickets.reduce(
+    return assignedTickets.reduce(
       (acc, ticket) => {
         const status = String(ticket.status || 'OPEN')
         acc[status] = (acc[status] || 0) + 1
-        if (ticket.assignedTo) {
-          acc.assigned += 1
-        } else {
-          acc.unassigned += 1
-        }
         return acc
       },
       {
-        OPEN: 0,
+        assigned: assignedTickets.length,
         IN_PROGRESS: 0,
         RESOLVED: 0,
         CLOSED: 0,
-        REJECTED: 0,
-        assigned: 0,
-        unassigned: 0,
       },
     )
-  }, [tickets])
+  }, [assignedTickets])
 
   const filteredTickets = useMemo(
-    () => tickets.filter((ticket) => ticket.status === activeStatus),
-    [tickets, activeStatus],
+    () => {
+      if (activeStatus === 'ASSIGNED') return assignedTickets
+      return assignedTickets.filter((ticket) => ticket.status === activeStatus)
+    },
+    [activeStatus, assignedTickets],
+  )
+
+  const toggleExpandedTicket = useCallback((ticketId) => {
+    setExpandedTickets((prev) => ({
+      ...prev,
+      [ticketId]: !prev[ticketId],
+    }))
+  }, [])
+
+  const toggleRowAction = useCallback((ticketId, action) => {
+    setRowActions((prev) => ({
+      ...prev,
+      [ticketId]: prev[ticketId] === action ? null : action,
+    }))
+    setExpandedTickets((prev) => ({
+      ...prev,
+      [ticketId]: true,
+    }))
+  }, [])
+
+  const clearRowAction = useCallback((ticketId) => {
+    setRowActions((prev) => {
+      if (!(ticketId in prev)) return prev
+      const next = { ...prev }
+      delete next[ticketId]
+      return next
+    })
+  }, [])
+
+  const getStatusDraft = useCallback(
+    (ticket) => {
+      if (statusDrafts[ticket.id] !== undefined) return statusDrafts[ticket.id]
+      return ticket.status || 'OPEN'
+    },
+    [statusDrafts],
+  )
+
+  const updateStatusDraft = useCallback((ticketId, value) => {
+    setStatusDrafts((prev) => ({ ...prev, [ticketId]: value }))
+  }, [])
+
+  const updateRejectDraft = useCallback((ticketId, value) => {
+    setRejectDrafts((prev) => ({ ...prev, [ticketId]: value }))
+  }, [])
+
+  const handleSaveStatus = useCallback(
+    async (ticket) => {
+      const status = String(getStatusDraft(ticket) || 'OPEN').trim()
+      if (!status) return
+      if (status === 'REJECTED') {
+        setStatusActionSuccess(null)
+        setStatusActionError('Use the reject button for rejected tickets.')
+        return
+      }
+
+      setStatusSavingTicketId(ticket.id)
+      setStatusActionError(null)
+      setStatusActionSuccess(null)
+      try {
+        await apiSend(`/api/tickets/${ticket.id}/status`, {
+          method: 'PATCH',
+          body: {
+            status,
+            rejectReason: null,
+          },
+        })
+        setStatusActionSuccess(`Status updated for ${ticketLabel(ticket)}.`)
+        await loadTickets()
+        clearRowAction(ticket.id)
+      } catch (err) {
+        setStatusActionError(err?.body?.message || err?.message || 'Could not update ticket status.')
+      } finally {
+        setStatusSavingTicketId(null)
+      }
+    },
+    [clearRowAction, getStatusDraft, loadTickets],
+  )
+
+  const handleRejectTicket = useCallback(
+    async (ticket) => {
+      const reason = String(rejectDrafts[ticket.id] || '').trim()
+      if (!reason) {
+        setRejectActionSuccess(null)
+        setRejectActionError('Please provide a reject reason first.')
+        return
+      }
+
+      setRejectSavingTicketId(ticket.id)
+      setRejectActionError(null)
+      setRejectActionSuccess(null)
+      try {
+        await apiSend(`/api/tickets/${ticket.id}/status`, {
+          method: 'PATCH',
+          body: {
+            status: 'REJECTED',
+            rejectReason: reason,
+          },
+        })
+        setRejectActionSuccess(`Ticket ${ticketLabel(ticket)} rejected.`)
+        setRejectDrafts((prev) => ({ ...prev, [ticket.id]: '' }))
+        await loadTickets()
+        clearRowAction(ticket.id)
+      } catch (err) {
+        setRejectActionError(err?.body?.message || err?.message || 'Could not reject ticket.')
+      } finally {
+        setRejectSavingTicketId(null)
+      }
+    },
+    [clearRowAction, loadTickets, rejectDrafts],
   )
 
   const updateCommentDraft = useCallback((ticketId, value) => {
@@ -241,84 +406,57 @@ export default function TechnicianTicketsDashboard() {
           <button
             type="button"
             onClick={loadTickets}
-            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-md"
           >
             Refresh list
           </button>
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_0.9fr]">
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">Open tickets</p>
-              <p className="mt-3 text-4xl font-semibold text-slate-900">{counts.OPEN}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">In progress</p>
-              <p className="mt-3 text-4xl font-semibold text-slate-900">{counts.IN_PROGRESS}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">Assigned tickets</p>
-              <p className="mt-3 text-4xl font-semibold text-slate-900">{counts.assigned}</p>
-            </div>
-          </div>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {STATUS_TABS.map((status) => {
+            const isActive = activeStatus === status
+            const label = status === 'ASSIGNED' ? 'Assigned tickets' : formatEnum(status)
+            const value =
+              status === 'ASSIGNED'
+                ? counts.assigned
+                : counts[status] || 0
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Status view</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Filter the queue by ticket lifecycle state.
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setActiveStatus(status)}
+                className={`rounded-lg border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                    : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <p
+                  className={`text-xs font-medium uppercase tracking-[0.16em] ${
+                    isActive ? 'text-slate-200' : 'text-slate-500'
+                  }`}
+                >
+                  {label}
                 </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {STATUS_TABS.map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => setActiveStatus(status)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      activeStatus === status
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {formatEnum(status)}
-                  </button>
-                ))}
-              </div>
-            </div>
+                <p className={`mt-2 text-3xl font-semibold ${isActive ? 'text-white' : ''}`}>
+                  {value}
+                </p>
+              </button>
+            )
+          })}
+        </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Total</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">
-                  {filteredTickets.length}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Assigned</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">
-                  {filteredTickets.filter((ticket) => ticket.assignedTo).length}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Unassigned</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">
-                  {filteredTickets.filter((ticket) => !ticket.assignedTo).length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:border-sky-200 hover:shadow-lg">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Work queue</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Tickets currently in {formatEnum(activeStatus).toLowerCase()} state.
+                  {activeStatus === 'ASSIGNED'
+                    ? `Tickets assigned to ${technicianLabel || 'you'}`
+                    : `Tickets currently in ${formatEnum(activeStatus).toLowerCase()} state.`}
                 </p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-slate-700">
@@ -326,237 +464,389 @@ export default function TechnicianTicketsDashboard() {
               </span>
             </div>
 
+            {statusActionError && (
+              <p className="mt-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+                {statusActionError}
+              </p>
+            )}
+            {statusActionSuccess && (
+              <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+                {statusActionSuccess}
+              </p>
+            )}
+            {rejectActionError && (
+              <p className="mt-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+                {rejectActionError}
+              </p>
+            )}
+            {rejectActionSuccess && (
+              <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+                {rejectActionSuccess}
+              </p>
+            )}
+
             {loading && (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+              <div className="mt-6 rounded-md border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
                 Loading tickets…
               </div>
             )}
 
             {!loading && error && (
-              <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-900">
+              <div className="mt-6 rounded-md border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-900">
                 <p>{error}</p>
               </div>
             )}
 
             {!loading && !error && filteredTickets.length === 0 && (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
-                No tickets match this status. Try another view or refresh the list.
+              <div className="mt-6 rounded-md border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                No assigned tickets match this status. Try another view or refresh the list.
               </div>
             )}
 
             {!loading && !error && filteredTickets.length > 0 && (
-              <ul className="mt-6 space-y-4">
-                {filteredTickets.map((ticket) => {
-                  const visibleComments = (ticket.comments || []).filter((comment) => !comment.hidden)
-                  const commentDraft = commentDrafts[ticket.id] || ''
-                  const isCommentSaving = commentSavingTicketId === ticket.id
+              <div className="mt-6 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                <table className="min-w-full border-separate border-spacing-0 text-sm">
+                  <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
+                    <tr>
+                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
+                        Ticket ID
+                      </th>
+                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
+                        Subject
+                      </th>
+                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
+                        Location
+                      </th>
+                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
+                        Priority
+                      </th>
+                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
+                        Status
+                      </th>
+                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
+                        Created
+                      </th>
+                      <th className="border-b border-gray-200 px-3 py-3 text-right font-semibold text-slate-700">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTickets.map((ticket) => {
+                          const visibleComments = (ticket.comments || []).filter((comment) => !comment.hidden)
+                          const commentDraft = commentDrafts[ticket.id] || ''
+                          const isCommentSaving = commentSavingTicketId === ticket.id
+                          const isExpanded = Boolean(expandedTickets[ticket.id])
+                          const rowAction = rowActions[ticket.id] || null
+                          const attachmentFiles = Array.isArray(ticket.attachmentFileNames)
+                            ? ticket.attachmentFileNames.filter(Boolean)
+                            : []
 
-                  return (
-                    <li
-                      key={ticket.id}
-                      className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-                            {ticketLabel(ticket)}
-                          </p>
-                          <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                            {ticket.location || 'Unknown location'}
-                          </h3>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">
-                            {ticket.description || 'No description provided.'}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <span
-                            className={`rounded-full px-3 py-1 text-sm font-semibold uppercase tracking-wide ${priorityClasses(ticket.priority)}`}
-                          >
-                            {ticket.priority || '—'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex flex-wrap gap-2">
-                          <StatusPill status={ticket.status} />
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-slate-700">
-                            {ticket.assignedTo || 'Unassigned'}
-                          </span>
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} />
-                      </div>
-
-                      <div className="mt-4 border-t border-slate-200 pt-4">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <p className="m-0 text-sm font-semibold text-slate-900">Comments</p>
-                          <span className="text-xs text-slate-500">
-                            {visibleComments.length}{' '}
-                            {visibleComments.length === 1 ? 'comment' : 'comments'}
-                          </span>
-                        </div>
-
-                        {visibleComments.length === 0 ? (
-                          <p className="mb-3 text-sm text-slate-500">No comments yet.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {visibleComments.map((comment) => {
-                              const owner = isCommentOwner(comment, user)
-                              const isEditing = editCommentId === comment.id
-                              const editDraft = editDrafts[comment.id] ?? comment.body ?? ''
-                              const isBusy = commentActionId === comment.id
-
-                              return (
-                                <div
-                                  key={comment.id}
-                                  className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3"
+                      return (
+                        <Fragment key={ticket.id}>
+                          <tr className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
+                            <td className="border-b border-gray-100 px-3 py-3 font-mono text-xs text-slate-600">
+                              {ticketLabel(ticket)}
+                            </td>
+                            <td className="border-b border-gray-100 px-3 py-3 text-slate-900">
+                              {displaySubject(ticket)}
+                            </td>
+                            <td className="border-b border-gray-100 px-3 py-3 text-slate-700">
+                              {ticket.location || '—'}
+                            </td>
+                            <td className="border-b border-gray-100 px-3 py-3">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${priorityClasses(ticket.priority)}`}
+                              >
+                                {ticket.priority || '—'}
+                              </span>
+                            </td>
+                            <td className="border-b border-gray-100 px-3 py-3">
+                              <StatusPill status={ticket.status} />
+                            </td>
+                            <td className="border-b border-gray-100 px-3 py-3 text-slate-600">
+                              <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
+                            </td>
+                            <td className="border-b border-gray-100 px-3 py-3 text-right">
+                              <div className="flex flex-wrap justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpandedTicket(ticket.id)}
+                                  className="inline-flex items-center rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
                                 >
-                                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <span className="text-sm font-medium text-slate-800">
-                                        {comment.author || 'Unknown user'}
-                                      </span>
-                                      {owner && (
-                                        <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700">
-                                          You
-                                        </span>
-                                      )}
-                                    </div>
-                                    <time
-                                      className="text-xs text-slate-500"
-                                      dateTime={comment.updatedAt || comment.createdAt}
-                                    >
-                                      {formatDate(comment.updatedAt || comment.createdAt)}
-                                    </time>
-                                  </div>
+                                  {isExpanded ? 'Hide details' : 'View details'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRowAction(ticket.id, 'status')}
+                                  className={`inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                                    rowAction === 'status'
+                                      ? 'border-slate-900 bg-slate-900 text-white'
+                                      : 'border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100'
+                                  }`}
+                                >
+                                  Update
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRowAction(ticket.id, 'reject')}
+                                  className={`inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                                    rowAction === 'reject'
+                                      ? 'border-slate-900 bg-slate-900 text-white'
+                                      : 'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100'
+                                  }`}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
 
-                                  {isEditing ? (
-                                    <>
-                                      <textarea
-                                        value={editDraft}
-                                        onChange={(e) => updateEditDraft(comment.id, e.target.value)}
-                                        rows={3}
-                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                      />
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        <button
-                                          type="button"
-                                          disabled={isBusy || !editDraft.trim()}
-                                          onClick={() =>
-                                            handleSaveCommentEdit(ticket.id, comment.id)
-                                          }
-                                          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                                        >
-                                          {isBusy ? 'Saving...' : 'Save'}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={isBusy}
-                                          onClick={cancelEditingComment}
-                                          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <p className="m-0 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                                        {comment.body}
-                                      </p>
-                                      {owner && (
-                                        <div className="mt-2 flex flex-wrap gap-2">
+                          {isExpanded && (
+                            <tr className="bg-slate-50/80">
+                              <td colSpan={7} className="border-b border-slate-100 px-4 py-4">
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+                                  <div className="min-w-0">
+                                    <p className="text-base text-slate-600">
+                                      <span>{formatEnum(ticket.category)}</span>
+                                      <span className="mx-2 text-slate-300">·</span>
+                                      <span>{ticket.assignedTo || 'Unassigned'}</span>
+                                    </p>
+                                    <p className="mt-2 text-base leading-7 text-slate-800">
+                                      {ticket.description || 'No description provided.'}
+                                    </p>
+
+                                    <div className="mt-3">
+                                      <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} />
+                                    </div>
+
+                                    {rowAction === 'status' && (
+                                      <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                                        <label className="mb-1 block text-xs font-medium text-slate-600">
+                                          Change status
+                                        </label>
+                                        <div className="flex flex-wrap items-end gap-2">
+                                          <select
+                                            value={getStatusDraft(ticket)}
+                                            onChange={(e) => updateStatusDraft(ticket.id, e.target.value)}
+                                            disabled={statusSavingTicketId === ticket.id}
+                                            className="min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                          >
+                                            {STATUS_OPTIONS.map((status) => (
+                                              <option key={status} value={status}>
+                                                {formatEnum(status)}
+                                              </option>
+                                            ))}
+                                          </select>
                                           <button
                                             type="button"
-                                            disabled={isBusy}
-                                            onClick={() => startEditingComment(comment)}
-                                            className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                                            onClick={() => handleSaveStatus(ticket)}
+                                            disabled={statusSavingTicketId === ticket.id}
+                                            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
                                           >
-                                            Edit
-                                          </button>
-                                          <button
-                                            type="button"
-                                            disabled={isBusy}
-                                            onClick={() =>
-                                              handleDeleteComment(ticket.id, comment.id)
-                                            }
-                                            className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                          >
-                                            Delete
+                                            {statusSavingTicketId === ticket.id ? 'Saving...' : 'Save status'}
                                           </button>
                                         </div>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
+                                      </div>
+                                    )}
 
-                        <div className="mt-3">
-                          <textarea
-                            value={commentDraft}
-                            onChange={(e) => updateCommentDraft(ticket.id, e.target.value)}
-                            rows={3}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                            placeholder="Add a comment to this ticket..."
-                          />
-                          <div className="mt-2 flex justify-end">
-                            <button
-                              type="button"
-                              disabled={isCommentSaving || !commentDraft.trim()}
-                              onClick={() => handleAddComment(ticket.id)}
-                              className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              {isCommentSaving ? 'Adding...' : 'Add comment'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+                                    {rowAction === 'reject' && (
+                                      <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3">
+                                        <label className="mb-1 block text-xs font-medium text-rose-700">
+                                          Reject reason
+                                        </label>
+                                        <textarea
+                                          value={rejectDrafts[ticket.id] || ''}
+                                          onChange={(e) => updateRejectDraft(ticket.id, e.target.value)}
+                                          rows={3}
+                                          className="mb-2 w-full rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                                          placeholder="Why is this ticket being rejected?"
+                                          disabled={rejectSavingTicketId === ticket.id}
+                                        />
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRejectTicket(ticket)}
+                                            disabled={rejectSavingTicketId === ticket.id}
+                                            className="rounded-md bg-rose-700 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-rose-800 disabled:opacity-50"
+                                          >
+                                            {rejectSavingTicketId === ticket.id ? 'Submitting...' : 'Submit reject'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {attachmentFiles.length > 0 && (
+                                      <div className="mt-4">
+                                        <div className="mb-2 flex items-center justify-between gap-3">
+                                          <p className="m-0 text-sm font-semibold text-slate-900">Evidence images</p>
+                                          <span className="text-xs text-slate-500">
+                                            {attachmentFiles.length}{' '}
+                                            {attachmentFiles.length === 1 ? 'image' : 'images'}
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                                          {attachmentFiles.map((filename, attachmentIndex) => {
+                                            const src = buildAttachmentUrl(ticket.id, filename)
+                                            return (
+                                              <a
+                                                key={`${ticket.id}-${filename}-${attachmentIndex}`}
+                                                href={src}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:shadow-md"
+                                                title={filename}
+                                              >
+                                                <img
+                                                  src={src}
+                                                  alt={`Attachment ${attachmentIndex + 1}`}
+                                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                                  loading="lazy"
+                                                />
+                                              </a>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="rounded-md border border-slate-200 bg-white p-3">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                      <p className="m-0 text-sm font-semibold text-slate-900">Comments</p>
+                                      <span className="text-xs text-slate-500">
+                                        {visibleComments.length}{' '}
+                                        {visibleComments.length === 1 ? 'comment' : 'comments'}
+                                      </span>
+                                    </div>
+
+                                    {visibleComments.length === 0 ? (
+                                      <p className="mb-3 text-sm text-slate-500">No comments yet.</p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {visibleComments.map((comment) => {
+                                          const owner = isCommentOwner(comment, user)
+                                          const isEditing = editCommentId === comment.id
+                                          const editDraft = editDrafts[comment.id] ?? comment.body ?? ''
+                                          const isBusy = commentActionId === comment.id
+
+                                          return (
+                                            <div
+                                              key={comment.id}
+                                              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm"
+                                            >
+                                              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                                <div className="min-w-0">
+                                                  <span className="text-sm font-medium text-slate-800">
+                                                    {comment.author || 'Unknown user'}
+                                                  </span>
+                                                  {owner && (
+                                                    <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700">
+                                                      You
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <time
+                                                  className="text-xs text-slate-500"
+                                                  dateTime={comment.updatedAt || comment.createdAt}
+                                                >
+                                                  {formatDate(comment.updatedAt || comment.createdAt)}
+                                                </time>
+                                              </div>
+
+                                              {isEditing ? (
+                                                <>
+                                                  <textarea
+                                                    value={editDraft}
+                                                    onChange={(e) => updateEditDraft(comment.id, e.target.value)}
+                                                    rows={3}
+                                                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                                  />
+                                                  <div className="mt-2 flex flex-wrap gap-2">
+                                                    <button
+                                                      type="button"
+                                                      disabled={isBusy || !editDraft.trim()}
+                                                      onClick={() => handleSaveCommentEdit(ticket.id, comment.id)}
+                                                      className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                                                    >
+                                                      {isBusy ? 'Saving...' : 'Save'}
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      disabled={isBusy}
+                                                      onClick={cancelEditingComment}
+                                                      className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <p className="m-0 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                                                    {comment.body}
+                                                  </p>
+                                                  {owner && (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                      <button
+                                                        type="button"
+                                                        disabled={isBusy}
+                                                        onClick={() => startEditingComment(comment)}
+                                                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
+                                                      >
+                                                        Edit
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        disabled={isBusy}
+                                                        onClick={() => handleDeleteComment(ticket.id, comment.id)}
+                                                        className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 disabled:opacity-50"
+                                                      >
+                                                        Delete
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                </>
+                                              )}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+
+                                    <div className="mt-3">
+                                      <textarea
+                                        value={commentDraft}
+                                        onChange={(e) => updateCommentDraft(ticket.id, e.target.value)}
+                                        rows={3}
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                        placeholder="Add a comment to this ticket..."
+                                      />
+                                      <div className="mt-2 flex justify-end">
+                                        <button
+                                          type="button"
+                                          disabled={isCommentSaving || !commentDraft.trim()}
+                                          onClick={() => handleAddComment(ticket.id)}
+                                          className="rounded-md bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-md disabled:opacity-50"
+                                        >
+                                          {isCommentSaving ? 'Adding...' : 'Add comment'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Insights</h2>
-            <dl className="mt-5 grid gap-4">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <dt className="text-sm text-slate-500">Total tickets</dt>
-                <dd className="mt-2 text-3xl font-semibold text-slate-900">{tickets.length}</dd>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <dt className="text-sm text-slate-500">Unassigned</dt>
-                <dd className="mt-2 text-3xl font-semibold text-slate-900">{counts.unassigned}</dd>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <dt className="text-sm text-slate-500">Active assignments</dt>
-                <dd className="mt-2 text-3xl font-semibold text-slate-900">{counts.assigned}</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">How to use this page</h2>
-            <ol className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-              <li>Review open and in-progress tickets.</li>
-              <li>Read and add comments to coordinate with users and staff.</li>
-              <li>Refresh the list after changes to see the latest queue.</li>
-            </ol>
-          </div>
-        </aside>
-      </div>
     </section>
   )
 }

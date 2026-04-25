@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  FaBan,
+  FaEye,
+  FaFloppyDisk,
+  FaPaperPlane,
+  FaPenToSquare,
+  FaRegTrashCan,
+  FaUserPen,
+} from 'react-icons/fa6'
+import TicketWorkflowBar from '../../components/TicketWorkflowBar'
+import TicketSlaBadges from '../../components/TicketSlaBadges'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 import { useAuth } from '../../context/AuthContext'
-import { apiDelete, apiGet, apiSend } from '../../services/apiClient'
+import { API_BASE_URL, apiDelete, apiGet, apiSend } from '../../services/apiClient'
 
 const ADMIN_TABS = [
   { id: 'view_all', label: 'View all tickets' },
@@ -85,6 +96,36 @@ function displayTicketId(ticket) {
   return ticket?.ticketNumber || ticket?.id || '—'
 }
 
+function displaySubject(ticket) {
+  const value = ticket?.subject
+  if (!value || !String(value).trim()) return 'Untitled incident'
+  return String(value).trim()
+}
+
+function formatCategory(value) {
+  if (!value) return '—'
+  return String(value).replaceAll('_', ' ')
+}
+
+function buildAttachmentUrl(ticketId, filename) {
+  if (!ticketId || !filename) return ''
+  return `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/attachments/${encodeURIComponent(filename)}`
+}
+
+function ticketStateKey(ticket) {
+  return ticket?.id || ticket?.ticketNumber || ''
+}
+
+function isPendingStatus(ticket) {
+  return ticket?.status === 'IN_PROGRESS'
+}
+
+function matchesAdminViewFilter(ticket, filterKey) {
+  if (filterKey === 'all') return true
+  if (filterKey === 'pending') return ticket?.status === 'IN_PROGRESS'
+  return ticket?.status === String(filterKey).toUpperCase()
+}
+
 function isCommentOwner(comment, user) {
   if (!comment || !user) return false
   if (comment.ownerId && user.id) {
@@ -120,11 +161,15 @@ export default function AdminTicketsPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
+  const [adminViewFilter, setAdminViewFilter] = useState('all')
   const [deletingId, setDeletingId] = useState(null)
+  const [expandedTickets, setExpandedTickets] = useState({})
+  const [inlineCardActions, setInlineCardActions] = useState({})
   const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [newCommentBody, setNewCommentBody] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentActionId, setCommentActionId] = useState(null)
+  const [clockTick, setClockTick] = useState(() => Date.now())
 
   const loadTickets = useCallback(async () => {
     setLoading(true)
@@ -200,10 +245,17 @@ export default function AdminTicketsPage() {
   }, [activeTab, loadFilteredTickets])
 
   useEffect(() => {
-    if (activeTab === 'assign_staff') {
+    if (activeTab === 'assign_staff' || activeTab === 'view_all') {
       loadTechnicians()
     }
   }, [activeTab, loadTechnicians])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setClockTick(Date.now())
+    }, 60000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const getDraft = useCallback(
     (ticket) => {
@@ -224,6 +276,25 @@ export default function AdminTicketsPage() {
         ...prev,
         [ticketId]: { ...current, ...patch },
       }
+    })
+  }, [])
+
+  const toggleInlineCardAction = useCallback((ticketKey, action) => {
+    setInlineCardActions((prev) => {
+      const nextAction = prev[ticketKey] === action ? null : action
+      return {
+        ...prev,
+        [ticketKey]: nextAction,
+      }
+    })
+  }, [])
+
+  const clearInlineCardAction = useCallback((ticketKey) => {
+    setInlineCardActions((prev) => {
+      if (!(ticketKey in prev)) return prev
+      const next = { ...prev }
+      delete next[ticketKey]
+      return next
     })
   }, [])
 
@@ -249,13 +320,14 @@ export default function AdminTicketsPage() {
         })
         setStatusActionSuccess(`Status updated for ticket ${displayTicketId(ticket)}.`)
         await refreshTickets()
+        clearInlineCardAction(ticketStateKey(ticket))
       } catch (e) {
         setStatusActionError(e?.body?.message || e?.message || 'Could not update ticket status.')
       } finally {
         setSavingId(null)
       }
     },
-    [getDraft, refreshTickets],
+    [clearInlineCardAction, getDraft, refreshTickets],
   )
 
   const updateRejectDraft = useCallback((ticketId, value) => {
@@ -284,13 +356,14 @@ export default function AdminTicketsPage() {
         setRejectSuccess(`Ticket ${displayTicketId(ticket)} rejected successfully.`)
         setRejectDrafts((prev) => ({ ...prev, [ticket.id]: '' }))
         await refreshTickets()
+        clearInlineCardAction(ticketStateKey(ticket))
       } catch (e) {
         setRejectError(e?.body?.message || e?.message || 'Could not reject ticket.')
       } finally {
         setRejectSavingId(null)
       }
     },
-    [refreshTickets, rejectDrafts],
+    [clearInlineCardAction, refreshTickets, rejectDrafts],
   )
 
   const getAssignDraft = useCallback(
@@ -324,13 +397,14 @@ export default function AdminTicketsPage() {
         setAssignSuccess(`Assignment updated for ticket ${displayTicketId(ticket)}.`)
         setAssignDrafts((prev) => ({ ...prev, [ticket.id]: value }))
         await refreshTickets()
+        clearInlineCardAction(ticketStateKey(ticket))
       } catch (e) {
         setAssignError(e?.body?.message || e?.message || 'Could not save assignment.')
       } finally {
         setAssignSavingId(null)
       }
     },
-    [getAssignDraft, refreshTickets],
+    [clearInlineCardAction, getAssignDraft, refreshTickets],
   )
 
   const handleDeleteTicket = useCallback(
@@ -381,6 +455,38 @@ export default function AdminTicketsPage() {
     () => tickets.find((t) => t.id === selectedTicketId) ?? null,
     [tickets, selectedTicketId],
   )
+
+  const viewAllCards = useMemo(() => {
+    const counts = {
+      all: tickets.length,
+      open: tickets.filter((ticket) => ticket.status === 'OPEN').length,
+      pending: tickets.filter((ticket) => isPendingStatus(ticket)).length,
+      resolved: tickets.filter((ticket) => ticket.status === 'RESOLVED').length,
+      closed: tickets.filter((ticket) => ticket.status === 'CLOSED').length,
+      rejected: tickets.filter((ticket) => ticket.status === 'REJECTED').length,
+    }
+
+    return [
+      { key: 'all', label: 'All tickets', value: counts.all, tone: 'dark' },
+      { key: 'open', label: 'Open', value: counts.open, tone: 'light' },
+      { key: 'pending', label: 'Pending', value: counts.pending, tone: 'light' },
+      { key: 'resolved', label: 'Resolved', value: counts.resolved, tone: 'light' },
+      { key: 'closed', label: 'Closed', value: counts.closed, tone: 'light' },
+      { key: 'rejected', label: 'Rejected', value: counts.rejected, tone: 'light' },
+    ]
+  }, [tickets])
+
+  const visibleAdminTickets = useMemo(
+    () => tickets.filter((ticket) => matchesAdminViewFilter(ticket, adminViewFilter)),
+    [adminViewFilter, tickets],
+  )
+
+  const toggleExpandedTicket = useCallback((ticketId) => {
+    setExpandedTickets((prev) => ({
+      ...prev,
+      [ticketId]: !prev[ticketId],
+    }))
+  }, [])
 
   const handleAddComment = useCallback(async () => {
     if (!selectedTicketId || !newCommentBody.trim()) return
@@ -437,8 +543,8 @@ export default function AdminTicketsPage() {
   )
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-slate-100 md:flex-row md:items-stretch">
-      <aside className="flex min-h-0 w-full shrink-0 flex-col border-b border-white/10 bg-[#0f172a] text-slate-200 md:h-full md:w-60 md:border-b-0 md:border-r md:border-white/10">
+    <div className="flex min-h-[calc(100vh-4rem)] w-full flex-1 flex-col overflow-hidden bg-slate-100 text-slate-900">
+      <aside className="hidden">
         <nav
           aria-label="Admin ticket tasks"
           className="flex max-h-[38vh] flex-col gap-1 overflow-y-auto p-2 md:max-h-none md:flex-1 md:flex-col md:gap-2 md:overflow-y-visible md:px-3 md:py-4"
@@ -463,19 +569,9 @@ export default function AdminTicketsPage() {
         </nav>
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col overflow-hidden bg-slate-100">
           {activeTab === 'view_all' ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
-                <button
-                  type="button"
-                  onClick={loadTickets}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Refresh
-                </button>
-              </div>
-
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
               {statusActionSuccess && (
                 <p className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
                   {statusActionSuccess}
@@ -487,117 +583,322 @@ export default function AdminTicketsPage() {
                 </p>
               )}
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
-              {loading && (
-                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
-                  Loading all tickets...
+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-slate-100 px-3 pb-4 pt-3">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                  {viewAllCards.map((card) => (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setAdminViewFilter(card.key)}
+                      className={`rounded-md border px-4 py-3 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                        adminViewFilter === card.key
+                          ? 'border-slate-900 bg-slate-900 text-white ring-2 ring-slate-900/20'
+                          : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <p
+                        className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                          adminViewFilter === card.key
+                            ? 'text-white/80'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        {card.label}
+                      </p>
+                      <p className={`mt-1 text-3xl font-semibold leading-none ${adminViewFilter === card.key ? 'text-white' : ''}`}>
+                        {card.value}
+                      </p>
+                    </button>
+                  ))}
                 </div>
-              )}
 
-              {!loading && error && (
-                <div
-                  className="shrink-0 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-                  role="alert"
-                >
-                  {error}
-                </div>
-              )}
+                {loading && (
+                  <div className="rounded-md border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                    Loading all tickets...
+                  </div>
+                )}
 
-              {!loading && !error && tickets.length === 0 && (
-                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
-                  No tickets found in the database.
-                </div>
-              )}
+                {!loading && error && (
+                  <div
+                    className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                    role="alert"
+                  >
+                    {error}
+                  </div>
+                )}
 
-              {!loading && !error && tickets.length > 0 && (
-                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
-                  <table className="min-w-full border-separate border-spacing-0 text-base">
-                    <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
-                      <tr>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Ticket ID
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Location
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Category
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Priority
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Status
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Assigned to
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-left font-semibold text-slate-700">
-                          Created
-                        </th>
-                        <th className="border-b border-gray-200 px-3 py-2 text-right font-semibold text-slate-700">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tickets.map((ticket) => (
-                        <tr key={ticket.id} className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
-                          <td className="border-b border-gray-100 px-3 py-2 font-mono text-sm text-slate-600">
-                            {displayTicketId(ticket)}
-                          </td>
-                          <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
-                            {ticket.location || '—'}
-                          </td>
-                          <td className="border-b border-gray-100 px-3 py-2 text-slate-700">
-                            {formatEnum(ticket.category)}
-                          </td>
-                          <td className="border-b border-gray-100 px-3 py-2">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${priorityClasses(ticket.priority)}`}
-                            >
-                              {ticket.priority || '—'}
-                            </span>
-                          </td>
-                          <td className="border-b border-gray-100 px-3 py-2">
-                            <StatusPill status={ticket.status} />
-                          </td>
-                          <td className="max-w-[10rem] border-b border-gray-100 px-3 py-2 text-slate-700">
-                            {ticket.assignedTo || '—'}
-                          </td>
-                          <td className="border-b border-gray-100 px-3 py-2 text-slate-600">
-                            {formatDate(ticket.createdAt)}
-                          </td>
-                          <td className="border-b border-gray-100 px-3 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteTicket(ticket)}
-                              disabled={deletingId === ticket.id}
-                              className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {deletingId === ticket.id ? 'Deleting...' : 'Delete'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                {!loading && !error && tickets.length === 0 && (
+                  <div className="rounded-md border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-sm text-slate-500">
+                    No tickets found in the database.
+                  </div>
+                )}
+
+                {!loading && !error && tickets.length > 0 && (
+                  <ul className="m-0 flex list-none flex-col gap-3 p-0">
+                    {visibleAdminTickets.map((ticket, index) => {
+                      const ticketKey = ticketStateKey(ticket)
+                      const isExpanded = Boolean(expandedTickets[ticketKey])
+                      const cardAction = inlineCardActions[ticketKey] || null
+                      const ticketComments = (ticket.comments || []).filter((comment) => !comment.hidden)
+                      const attachmentFiles = Array.isArray(ticket.attachmentFileNames)
+                        ? ticket.attachmentFileNames.filter(Boolean)
+                        : []
+
+                      return (
+                        <li
+                          key={ticketKey}
+                          className="ticket-enter mx-auto w-full rounded-md border border-gray-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950/5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[70%]"
+                          style={{ animationDelay: `${index * 80}ms` }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <span
+                                className="block break-all font-mono text-base font-medium text-slate-700"
+                                title={ticket.id}
+                              >
+                                {displayTicketId(ticket)}
+                              </span>
+                              <p className="mt-2 text-lg font-semibold text-slate-900">{displaySubject(ticket)}</p>
+                              <div className="mt-2 flex justify-start">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpandedTicket(ticketKey)}
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
+                                >
+                                  <FaEye className="text-[0.9em]" />
+                                  {isExpanded ? 'Hide details' : 'View all'}
+                                </button>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleInlineCardAction(ticketKey, 'status')}
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100"
+                                >
+                                  <FaPenToSquare className="text-[0.9em]" />
+                                  Update
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleInlineCardAction(ticketKey, 'reject')}
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
+                                >
+                                  <FaBan className="text-[0.9em]" />
+                                  Reject
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleInlineCardAction(ticketKey, 'assign')}
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100"
+                                >
+                                  <FaUserPen className="text-[0.9em]" />
+                                  Assign
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteTicket(ticket)}
+                                  disabled={deletingId === ticket.id}
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <FaRegTrashCan className="text-[0.9em]" />
+                                  {deletingId === ticket.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              </div>
+
+                              {cardAction === 'status' && (
+                                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                                    Change status
+                                  </label>
+                                  <div className="flex flex-wrap items-end gap-2">
+                                    <select
+                                      value={getDraft(ticket).status}
+                                      onChange={(e) => updateDraft(ticket.id, { status: e.target.value })}
+                                      disabled={savingId === ticket.id || deletingId === ticket.id}
+                                      className="min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                    >
+                                      {STATUS_OPTIONS.map((status) => (
+                                        <option key={status} value={status}>
+                                          {formatEnum(status)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateStatus(ticket)}
+                                      disabled={savingId === ticket.id || deletingId === ticket.id}
+                                      className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      <FaFloppyDisk className="text-[0.9em]" />
+                                      {savingId === ticket.id ? 'Saving...' : 'Save status'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {cardAction === 'reject' && (
+                                <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3">
+                                  <label className="mb-1 block text-xs font-medium text-rose-700">
+                                    Reject reason
+                                  </label>
+                                  <textarea
+                                    value={rejectDrafts[ticket.id] || ''}
+                                    onChange={(e) => updateRejectDraft(ticket.id, e.target.value)}
+                                    rows={3}
+                                    placeholder="Why is this ticket being rejected?"
+                                    disabled={rejectSavingId === ticket.id || deletingId === ticket.id}
+                                    className="mb-2 w-full rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100 disabled:bg-slate-100"
+                                  />
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRejectWithReason(ticket)}
+                                      disabled={rejectSavingId === ticket.id || deletingId === ticket.id}
+                                      className="inline-flex items-center gap-1.5 rounded-md bg-rose-700 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      <FaPaperPlane className="text-[0.9em]" />
+                                      {rejectSavingId === ticket.id ? 'Submitting...' : 'Submit reject'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {cardAction === 'assign' && (
+                                <div className="mt-3 rounded-md border border-cyan-200 bg-cyan-50 p-3">
+                                  <label className="mb-1 block text-xs font-medium text-cyan-800">
+                                    Assign technician
+                                  </label>
+                                  <div className="flex flex-wrap items-end gap-2">
+                                    <select
+                                      value={getAssignDraft(ticket)}
+                                      onChange={(e) => updateAssignDraft(ticket.id, e.target.value)}
+                                      disabled={assignSavingId === ticket.id || deletingId === ticket.id || techniciansLoading}
+                                      className="min-w-[14rem] flex-1 rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-100"
+                                    >
+                                      <option value="">
+                                        {techniciansLoading ? 'Loading technicians...' : 'Unassigned'}
+                                      </option>
+                                      {getAssignDraft(ticket) &&
+                                        !technicians.some((technician) => technician.label === getAssignDraft(ticket)) && (
+                                          <option value={getAssignDraft(ticket)}>{getAssignDraft(ticket)}</option>
+                                        )}
+                                      {technicians.map((technician) => (
+                                        <option key={technician.id} value={technician.label}>
+                                          {technician.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveAssignment(ticket)}
+                                      disabled={assignSavingId === ticket.id || deletingId === ticket.id || techniciansLoading}
+                                      className="inline-flex items-center gap-1.5 rounded-md bg-cyan-700 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      <FaUserPen className="text-[0.9em]" />
+                                      {assignSavingId === ticket.id ? 'Saving...' : 'Assign'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <div className="max-w-full">
+                                <TicketWorkflowBar
+                                  status={ticket.status}
+                                  rejectReason={ticket.rejectReason}
+                                  compact
+                                />
+                              </div>
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                <StatusPill status={ticket.status} />
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}
+                                >
+                                  {ticket.priority || '—'}
+                                </span>
+                              </div>
+                              <p className="text-right text-sm text-gray-600">
+                                <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
+                              </p>
+                              <TicketSlaBadges
+                                priority={ticket.priority}
+                                createdAt={ticket.createdAt}
+                                firstResponseAt={ticket.firstResponseAt}
+                                resolvedAt={ticket.resolvedAt}
+                                status={ticket.status}
+                                now={clockTick}
+                                className="justify-end"
+                              />
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="mt-3 border-t border-slate-200 pt-3">
+                              <p className="text-base text-gray-600">
+                                <span>{formatCategory(ticket.category)}</span>
+                                <span className="mx-2 text-gray-300">·</span>
+                                <span>{ticket.location || '—'}</span>
+                              </p>
+                              <p className="mt-2 text-base leading-7 text-gray-800">
+                                {ticket.description || 'No description provided.'}
+                              </p>
+
+                              {attachmentFiles.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="m-0 text-sm font-semibold text-slate-900">Evidence images</p>
+                                    <span className="text-xs text-slate-500">
+                                      {attachmentFiles.length} {attachmentFiles.length === 1 ? 'image' : 'images'}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                                    {attachmentFiles.map((filename, attachmentIndex) => {
+                                      const src = buildAttachmentUrl(ticket.id, filename)
+                                      return (
+                                        <a
+                                          key={`${ticket.id}-${filename}-${attachmentIndex}`}
+                                          href={src}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:shadow-md"
+                                          title={filename}
+                                        >
+                                          <img
+                                            src={src}
+                                            alt={`Attachment ${attachmentIndex + 1}`}
+                                            className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                            loading="lazy"
+                                          />
+                                        </a>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {ticket.assignedTo && (
+                                <p className="mt-2 text-sm text-gray-600">
+                                  <span className="font-medium text-slate-700">Assigned to:</span> {ticket.assignedTo}
+                                </p>
+                              )}
+
+                              {ticketComments.length > 0 && (
+                                <p className="mt-2 text-sm text-slate-500">
+                                  {ticketComments.length} visible {ticketComments.length === 1 ? 'comment' : 'comments'}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </div>
             </div>
           ) : activeTab === 'change_status' ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
-                <button
-                  type="button"
-                  onClick={loadTickets}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Refresh
-                </button>
-              </div>
-
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
               {statusActionError && (
                 <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {statusActionError}
@@ -609,7 +910,7 @@ export default function AdminTicketsPage() {
                 </p>
               )}
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 px-3 pb-3 pt-2">
               {loading && (
                 <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
@@ -632,7 +933,7 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                   <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
@@ -722,17 +1023,7 @@ export default function AdminTicketsPage() {
               </div>
             </div>
           ) : activeTab === 'reject_reason' ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
-                <button
-                  type="button"
-                  onClick={loadTickets}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Refresh
-                </button>
-              </div>
-
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
               {rejectError && (
                 <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {rejectError}
@@ -744,7 +1035,7 @@ export default function AdminTicketsPage() {
                 </p>
               )}
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 px-3 pb-3 pt-2">
               {loading && (
                 <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
@@ -773,7 +1064,7 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.filter((t) => t.status !== 'REJECTED').length > 0 && (
-                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                   <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
@@ -867,16 +1158,6 @@ export default function AdminTicketsPage() {
             </div>
           ) : activeTab === 'assign_staff' ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
-                <button
-                  type="button"
-                  onClick={refreshAssignmentData}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Refresh
-                </button>
-              </div>
-
               {assignError && (
                 <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-800">
                   {assignError}
@@ -893,7 +1174,7 @@ export default function AdminTicketsPage() {
                 </p>
               )}
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#11192b] px-3 pb-3 pt-2">
               {loading && (
                 <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
@@ -916,7 +1197,7 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                   <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
@@ -1023,7 +1304,7 @@ export default function AdminTicketsPage() {
               </div>
             </div>
           ) : activeTab === 'filters' ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
               <div className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
                 <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
                   <div className="flex min-w-[10rem] flex-col gap-1">
@@ -1092,16 +1373,9 @@ export default function AdminTicketsPage() {
                     Clear filters
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={loadFilteredTickets}
-                  className="shrink-0 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Refresh
-                </button>
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-2">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 px-3 pb-3 pt-2">
               {loading && (
                 <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-500">
                   Loading tickets...
@@ -1124,7 +1398,7 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-                <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                   <table className="min-w-full border-separate border-spacing-0 text-base">
                     <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                       <tr>
@@ -1201,17 +1475,7 @@ export default function AdminTicketsPage() {
               </div>
             </div>
           ) : activeTab === 'comment_moderation' ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
-                <button
-                  type="button"
-                  onClick={loadTickets}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
-                >
-                  Refresh
-                </button>
-              </div>
-
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
               {loading && (
                 <div className="flex flex-1 items-center justify-center p-8 text-sm text-gray-500">
                   Loading tickets...
@@ -1234,9 +1498,9 @@ export default function AdminTicketsPage() {
               )}
 
               {!loading && !error && tickets.length > 0 && (
-              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:flex-row">
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden bg-slate-100 p-3 md:flex-row">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:max-w-[50%]">
-                  <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto rounded-md border border-slate-200 bg-white">
+                  <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
                     <table className="min-w-full border-separate border-spacing-0 text-base">
                       <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
                         <tr>
