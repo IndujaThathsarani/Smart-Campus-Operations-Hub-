@@ -83,15 +83,62 @@ function toDateKey(date) {
   return `${year}-${month}-${day}`
 }
 
-function getBookedDateKeys(bookings, resourceId) {
-  if (!resourceId) return new Set()
+function formatDisplayDate(date) {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
 
-  const bookedDateKeys = new Set()
+function formatTimeLabel(date) {
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
 
-  bookings.forEach((booking) => {
-    if (booking.resourceId !== resourceId) return
-    if (booking.status === 'REJECTED' || booking.status === 'CANCELLED') return
+function parseTimeValue(timeValue) {
+  if (!timeValue || typeof timeValue !== 'string') return null
 
+  const [hourText, minuteText] = timeValue.split(':')
+  const hours = Number(hourText)
+  const minutes = Number(minuteText)
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+
+  return { hours, minutes }
+}
+
+function createDateTime(date, timeValue) {
+  const parsed = parseTimeValue(timeValue)
+  if (!parsed) return null
+
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    parsed.hours,
+    parsed.minutes,
+    0,
+    0,
+  )
+}
+
+function getResourceBookings(bookings, resourceId) {
+  if (!resourceId) return []
+
+  return bookings.filter((booking) => {
+    if (booking.resourceId !== resourceId) return false
+    return booking.status !== 'REJECTED' && booking.status !== 'CANCELLED'
+  })
+}
+
+function getBookingDateMap(bookings, resourceId) {
+  const bookingDateMap = new Map()
+
+  getResourceBookings(bookings, resourceId).forEach((booking) => {
     const start = new Date(booking.startTime)
     const end = new Date(booking.endTime)
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return
@@ -100,12 +147,35 @@ function getBookedDateKeys(bookings, resourceId) {
     const last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
 
     while (current <= last) {
-      bookedDateKeys.add(toDateKey(current))
+      const dayStart = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0, 0, 0)
+      const nextDayStart = new Date(current.getFullYear(), current.getMonth(), current.getDate() + 1, 0, 0, 0, 0)
+      const slotStart = new Date(Math.max(start.getTime(), dayStart.getTime()))
+      const slotEnd = new Date(Math.min(end.getTime(), nextDayStart.getTime()))
+
+      if (slotStart < slotEnd) {
+        const dateKey = toDateKey(current)
+        const existing = bookingDateMap.get(dateKey) || []
+        existing.push({
+          id: booking.id,
+          status: booking.status,
+          start: slotStart,
+          end: slotEnd,
+        })
+        bookingDateMap.set(dateKey, existing)
+      }
+
       current.setDate(current.getDate() + 1)
     }
   })
 
-  return bookedDateKeys
+  bookingDateMap.forEach((slots, dateKey) => {
+    bookingDateMap.set(
+      dateKey,
+      [...slots].sort((left, right) => left.start.getTime() - right.start.getTime()),
+    )
+  })
+
+  return bookingDateMap
 }
 
 function getResourceRangeDateKeys(resource) {
@@ -129,6 +199,62 @@ function getResourceRangeDateKeys(resource) {
   return dateKeys
 }
 
+function isDateWithinResourceRange(resource, date) {
+  if (!resource || !resource.availabilityStartDate || !resource.availabilityEndDate) {
+    return true
+  }
+
+  const start = new Date(resource.availabilityStartDate)
+  const end = new Date(resource.availabilityEndDate)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return true
+
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const rangeStart = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const rangeEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+
+  return target >= rangeStart && target <= rangeEnd
+}
+
+function getAvailabilityWindow(resource, date) {
+  if (!resource || !isDateWithinResourceRange(resource, date)) return null
+  if (!resource.availabilityStart || !resource.availabilityEnd) return null
+
+  const start = createDateTime(date, resource.availabilityStart)
+  const end = createDateTime(date, resource.availabilityEnd)
+
+  if (!start || !end || start >= end) return null
+
+  return { start, end }
+}
+
+function getAvailableTimeSlots(bookedSlots, availabilityWindow) {
+  if (!availabilityWindow) return []
+
+  const freeSlots = []
+  let cursor = availabilityWindow.start
+
+  bookedSlots.forEach((slot) => {
+    const boundedStart = new Date(Math.max(slot.start.getTime(), availabilityWindow.start.getTime()))
+    const boundedEnd = new Date(Math.min(slot.end.getTime(), availabilityWindow.end.getTime()))
+
+    if (boundedStart >= boundedEnd) return
+
+    if (cursor < boundedStart) {
+      freeSlots.push({ start: new Date(cursor), end: boundedStart })
+    }
+
+    if (cursor < boundedEnd) {
+      cursor = boundedEnd
+    }
+  })
+
+  if (cursor < availabilityWindow.end) {
+    freeSlots.push({ start: new Date(cursor), end: availabilityWindow.end })
+  }
+
+  return freeSlots
+}
+
 export default function Catalogue() {
   const navigate = useNavigate()
   const [activeCategory, setActiveCategory] = useState('LECTURE_HALL')
@@ -136,6 +262,7 @@ export default function Catalogue() {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedCalendarResourceId, setSelectedCalendarResourceId] = useState('')
+  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState('')
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -246,12 +373,17 @@ export default function Catalogue() {
     return filteredResources.find((resource) => resource.id === selectedCalendarResourceId) || null
   }, [filteredResources, selectedCalendarResourceId])
 
-  const bookedDateKeys = useMemo(() => {
-    const bookingKeys = getBookedDateKeys(bookings, selectedCalendarResourceId)
-    const rangeKeys = getResourceRangeDateKeys(selectedCalendarResource)
+  const bookingDateMap = useMemo(() => {
+    return getBookingDateMap(bookings, selectedCalendarResourceId)
+  }, [bookings, selectedCalendarResourceId])
 
-    return new Set([...bookingKeys, ...rangeKeys])
-  }, [bookings, selectedCalendarResourceId, selectedCalendarResource])
+  const bookedDateKeys = useMemo(() => {
+    return new Set(bookingDateMap.keys())
+  }, [bookingDateMap])
+
+  const resourceRangeDateKeys = useMemo(() => {
+    return getResourceRangeDateKeys(selectedCalendarResource)
+  }, [selectedCalendarResource])
 
   const calendarCells = useMemo(() => {
     const year = calendarMonth.getFullYear()
@@ -273,6 +405,53 @@ export default function Catalogue() {
 
     return cells
   }, [calendarMonth])
+
+  useEffect(() => {
+    if (!selectedCalendarResource) {
+      setSelectedCalendarDateKey('')
+      return
+    }
+
+    const currentSelection = selectedCalendarDateKey
+      ? new Date(`${selectedCalendarDateKey}T00:00:00`)
+      : null
+
+    if (currentSelection && isDateWithinResourceRange(selectedCalendarResource, currentSelection)) {
+      return
+    }
+
+    const today = new Date()
+    if (isDateWithinResourceRange(selectedCalendarResource, today)) {
+      setSelectedCalendarDateKey(toDateKey(today))
+      return
+    }
+
+    if (selectedCalendarResource.availabilityStartDate) {
+      setSelectedCalendarDateKey(selectedCalendarResource.availabilityStartDate)
+      return
+    }
+
+    setSelectedCalendarDateKey('')
+  }, [selectedCalendarDateKey, selectedCalendarResource])
+
+  const selectedCalendarDate = useMemo(() => {
+    if (!selectedCalendarDateKey) return null
+    const date = new Date(`${selectedCalendarDateKey}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? null : date
+  }, [selectedCalendarDateKey])
+
+  const selectedDateBookedSlots = useMemo(() => {
+    return bookingDateMap.get(selectedCalendarDateKey) || []
+  }, [bookingDateMap, selectedCalendarDateKey])
+
+  const selectedDateAvailabilityWindow = useMemo(() => {
+    if (!selectedCalendarDate || !selectedCalendarResource) return null
+    return getAvailabilityWindow(selectedCalendarResource, selectedCalendarDate)
+  }, [selectedCalendarDate, selectedCalendarResource])
+
+  const selectedDateAvailableSlots = useMemo(() => {
+    return getAvailableTimeSlots(selectedDateBookedSlots, selectedDateAvailabilityWindow)
+  }, [selectedDateBookedSlots, selectedDateAvailabilityWindow])
 
   return (
     <div
@@ -580,7 +759,7 @@ export default function Catalogue() {
                   Booking calendar
                 </h3>
                 <p style={{ margin: '0.15rem 0 0', color: '#64748b', fontSize: '0.75rem' }}>
-                  Red dates are already booked.
+                  Click a date to see booked times and free slots.
                 </p>
               </div>
 
@@ -641,6 +820,12 @@ export default function Catalogue() {
                 {selectedCalendarResource.availabilityStartDate && selectedCalendarResource.availabilityEndDate
                   ? `${selectedCalendarResource.availabilityStartDate} to ${selectedCalendarResource.availabilityEndDate}`
                   : 'No date range set'}
+                {(selectedCalendarResource.availabilityStart && selectedCalendarResource.availabilityEnd) ? (
+                  <>
+                    <br />
+                    {selectedCalendarResource.availabilityStart} - {selectedCalendarResource.availabilityEnd}
+                  </>
+                ) : null}
               </p>
             ) : null}
 
@@ -658,29 +843,147 @@ export default function Catalogue() {
 
                 const dateKey = toDateKey(cellDate)
                 const isBooked = bookedDateKeys.has(dateKey)
+                const isInRange = resourceRangeDateKeys.size === 0 || resourceRangeDateKeys.has(dateKey)
                 const isToday = dateKey === toDateKey(new Date())
+                const isSelected = dateKey === selectedCalendarDateKey
 
                 return (
-                  <div
+                  <button
                     key={dateKey}
-                    title={isBooked ? 'Booked date' : 'Available date'}
+                    type="button"
+                    onClick={() => setSelectedCalendarDateKey(dateKey)}
+                    title={isBooked ? 'Booked slots available on this date' : 'View availability for this date'}
                     style={{
                       minHeight: '24px',
                       borderRadius: '7px',
-                      border: `1px solid ${isBooked ? '#fda4af' : isToday ? '#93c5fd' : '#e2e8f0'}`,
-                      background: isBooked ? '#ffe4e6' : '#fff',
-                      color: isBooked ? '#be123c' : '#0f172a',
+                      border: `1px solid ${
+                        isSelected ? '#2563eb' : isBooked ? '#fda4af' : isToday ? '#93c5fd' : '#e2e8f0'
+                      }`,
+                      background: isSelected ? '#dbeafe' : isBooked ? '#ffe4e6' : '#fff',
+                      color: !isInRange ? '#94a3b8' : isBooked ? '#be123c' : '#0f172a',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '0.72rem',
-                      fontWeight: isBooked ? 700 : 500,
+                      fontWeight: isBooked || isSelected ? 700 : 500,
+                      cursor: 'pointer',
+                      opacity: isInRange ? 1 : 0.45,
                     }}
                   >
                     {cellDate.getDate()}
-                  </div>
+                  </button>
                 )
               })}
+            </div>
+
+            <div style={{
+              marginTop: '0.85rem',
+              borderTop: '1px solid #e2e8f0',
+              paddingTop: '0.75rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.55rem'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Selected date</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                  {selectedCalendarDate ? formatDisplayDate(selectedCalendarDate) : 'Choose a date'}
+                </div>
+              </div>
+
+              {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate) ? (
+                <div style={{
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  padding: '0.65rem',
+                  fontSize: '0.75rem',
+                  color: '#475569',
+                  lineHeight: 1.45,
+                }}>
+                  This date is outside the resource availability range.
+                </div>
+              ) : (
+                <>
+                  <div style={{
+                    borderRadius: '10px',
+                    background: '#fff1f2',
+                    border: '1px solid #fecdd3',
+                    padding: '0.65rem',
+                  }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#9f1239', marginBottom: '0.35rem' }}>
+                      Booked time slots
+                    </div>
+                    {selectedDateBookedSlots.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        {selectedDateBookedSlots.map((slot) => (
+                          <div
+                            key={`${slot.id}-${slot.start.toISOString()}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '0.74rem',
+                              color: '#881337',
+                              background: '#fff',
+                              border: '1px solid #fecdd3',
+                              borderRadius: '8px',
+                              padding: '0.4rem 0.5rem',
+                            }}
+                          >
+                            <span>{formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}</span>
+                            <span>{slot.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.74rem', color: '#881337' }}>
+                        No bookings on this date.
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
+                    borderRadius: '10px',
+                    background: '#ecfdf5',
+                    border: '1px solid #bbf7d0',
+                    padding: '0.65rem',
+                  }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#166534', marginBottom: '0.35rem' }}>
+                      Available time slots
+                    </div>
+                    {selectedDateAvailabilityWindow ? (
+                      selectedDateAvailableSlots.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {selectedDateAvailableSlots.map((slot) => (
+                            <div
+                              key={`${slot.start.toISOString()}-${slot.end.toISOString()}`}
+                              style={{
+                                fontSize: '0.74rem',
+                                color: '#166534',
+                                background: '#fff',
+                                border: '1px solid #bbf7d0',
+                                borderRadius: '8px',
+                                padding: '0.4rem 0.5rem',
+                              }}
+                            >
+                              {formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.74rem', color: '#166534' }}>
+                          No free slot remains within {selectedCalendarResource?.availabilityStart} - {selectedCalendarResource?.availabilityEnd}.
+                        </div>
+                      )
+                    ) : (
+                      <div style={{ fontSize: '0.74rem', color: '#166534' }}>
+                        Daily availability hours are not set for this resource.
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </aside>
         </div>
