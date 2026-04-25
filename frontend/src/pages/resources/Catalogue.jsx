@@ -76,6 +76,11 @@ function matchesCategory(resourceType, categoryId) {
   return resourceType === categoryId
 }
 
+function getEquipmentImage(resource) {
+  if (!resource || resource.type !== 'EQUIPMENT') return ''
+  return typeof resource.equipmentImage === 'string' ? resource.equipmentImage : ''
+}
+
 function toDateKey(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -255,6 +260,43 @@ function getAvailableTimeSlots(bookedSlots, availabilityWindow) {
   return freeSlots
 }
 
+function splitIntoHourlySlots(freeSlots, minutesPerSlot = 60) {
+  const slots = []
+  const slotMs = minutesPerSlot * 60 * 1000
+
+  freeSlots.forEach((slot) => {
+    let cursor = new Date(slot.start)
+    const end = new Date(slot.end)
+
+    while (cursor.getTime() + slotMs <= end.getTime()) {
+      const next = new Date(cursor.getTime() + slotMs)
+      slots.push({ start: new Date(cursor), end: next })
+      cursor = next
+    }
+  })
+
+  return slots
+}
+
+function getDayAvailabilityState(resource, date, bookingDateMap) {
+  if (!resource || !date) return 'unknown'
+  if (!isDateWithinResourceRange(resource, date)) return 'out-of-range'
+
+  const dateKey = toDateKey(date)
+  const dayBookings = bookingDateMap.get(dateKey) || []
+  const window = getAvailabilityWindow(resource, date)
+
+  if (!window) {
+    return dayBookings.length > 0 ? 'booked-only' : 'unknown'
+  }
+
+  const freeRanges = getAvailableTimeSlots(dayBookings, window)
+
+  if (dayBookings.length === 0) return 'fully-available'
+  if (freeRanges.length === 0) return 'fully-booked'
+  return 'partially-booked'
+}
+
 export default function Catalogue() {
   const navigate = useNavigate()
   const [activeCategory, setActiveCategory] = useState('LECTURE_HALL')
@@ -263,6 +305,9 @@ export default function Catalogue() {
   const [loading, setLoading] = useState(true)
   const [selectedCalendarResourceId, setSelectedCalendarResourceId] = useState('')
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState('')
+  const [selectedSlotKey, setSelectedSlotKey] = useState('')
+  const [bookingInProgress, setBookingInProgress] = useState(false)
+  const [bookingFeedback, setBookingFeedback] = useState(null)
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -452,6 +497,75 @@ export default function Catalogue() {
   const selectedDateAvailableSlots = useMemo(() => {
     return getAvailableTimeSlots(selectedDateBookedSlots, selectedDateAvailabilityWindow)
   }, [selectedDateBookedSlots, selectedDateAvailabilityWindow])
+
+  const selectedDateBookableSlots = useMemo(() => {
+    const now = new Date()
+    const hourlySlots = splitIntoHourlySlots(selectedDateAvailableSlots)
+
+    return hourlySlots.filter((slot) => slot.end.getTime() > now.getTime())
+  }, [selectedDateAvailableSlots])
+
+  useEffect(() => {
+    if (selectedDateBookableSlots.length === 0) {
+      setSelectedSlotKey('')
+      return
+    }
+
+    const selectedStillExists = selectedDateBookableSlots.some(
+      (slot) => `${slot.start.toISOString()}|${slot.end.toISOString()}` === selectedSlotKey,
+    )
+
+    if (!selectedStillExists) {
+      const first = selectedDateBookableSlots[0]
+      setSelectedSlotKey(`${first.start.toISOString()}|${first.end.toISOString()}`)
+    }
+  }, [selectedDateBookableSlots, selectedSlotKey])
+
+  useEffect(() => {
+    setBookingFeedback(null)
+  }, [selectedCalendarResourceId, selectedCalendarDateKey])
+
+  async function handleBookSelectedSlot() {
+    if (!selectedCalendarResource || !selectedSlotKey) return
+
+    const [startIso, endIso] = selectedSlotKey.split('|')
+    if (!startIso || !endIso) return
+
+    setBookingInProgress(true)
+    setBookingFeedback(null)
+
+    try {
+      await apiSend('/api/bookings', {
+        method: 'POST',
+        body: {
+          resourceId: selectedCalendarResource.id,
+          location: selectedCalendarResource.location || '',
+          startTime: startIso,
+          endTime: endIso,
+          purpose: `Booking for ${selectedCalendarResource.name || 'resource'} via catalogue`,
+          expectedAttendees: 1,
+          waitlistRequested: false,
+        },
+      })
+
+      setBookingFeedback({
+        type: 'success',
+        text: `Booking confirmed for ${selectedCalendarDateKey} (${formatTimeLabel(new Date(startIso))} - ${formatTimeLabel(new Date(endIso))}).`,
+      })
+      await fetchBookings()
+    } catch (err) {
+      const message =
+        err?.body?.error === 'CONFLICT'
+          ? 'That slot was just booked by another user. Please choose another available slot.'
+          : err?.body?.message || 'Failed to create booking for the selected slot.'
+      setBookingFeedback({ type: 'error', text: message })
+      await fetchBookings()
+    } finally {
+      setBookingInProgress(false)
+    }
+  }
+
+  const showEquipmentImageColumn = activeCategory === 'EQUIPMENT'
 
   return (
     <div
@@ -649,10 +763,19 @@ export default function Catalogue() {
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center' }}>Loading resources...</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table
+                style={{
+                  width: '100%',
+                  minWidth: showEquipmentImageColumn ? '64rem' : '58rem',
+                  borderCollapse: 'collapse',
+                }}
+              >
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>ID</th>
+                    {showEquipmentImageColumn ? (
+                      <th style={{ textAlign: 'left', padding: '0.75rem' }}>Image</th>
+                    ) : null}
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Name</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Location</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Capacity</th>
@@ -666,6 +789,44 @@ export default function Catalogue() {
                   {filteredResources.map((resource, idx) => (
                     <tr key={resource.id} style={{ borderTop: '1px solid #e5e7eb' }}>
                       <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
+                      {showEquipmentImageColumn ? (
+                        <td style={{ padding: '0.75rem' }}>
+                          {getEquipmentImage(resource) ? (
+                            <img
+                              src={getEquipmentImage(resource)}
+                              alt={`${resource.name || 'Equipment'} thumbnail`}
+                              style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '10px',
+                                objectFit: 'cover',
+                                border: '1px solid #dbe4f0',
+                                background: '#f8fafc',
+                                display: 'block',
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '48px',
+                              height: '48px',
+                              borderRadius: '10px',
+                              border: '1px dashed #cbd5e1',
+                              background: '#f8fafc',
+                              color: '#94a3b8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.65rem',
+                              lineHeight: 1,
+                              textAlign: 'center',
+                            }}>
+                              No
+                              <br />
+                              image
+                            </div>
+                          )}
+                        </td>
+                      ) : null}
                       <td style={{ padding: '0.75rem', fontWeight: '500' }}>{resource.name}</td>
                       <td style={{ padding: '0.75rem' }}>{resource.location}</td>
                       <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
@@ -842,30 +1003,60 @@ export default function Catalogue() {
                 }
 
                 const dateKey = toDateKey(cellDate)
-                const isBooked = bookedDateKeys.has(dateKey)
+                const dayState = getDayAvailabilityState(selectedCalendarResource, cellDate, bookingDateMap)
                 const isInRange = resourceRangeDateKeys.size === 0 || resourceRangeDateKeys.has(dateKey)
                 const isToday = dateKey === toDateKey(new Date())
                 const isSelected = dateKey === selectedCalendarDateKey
+
+                let borderColor = '#e2e8f0'
+                let backgroundColor = '#fff'
+                let textColor = '#0f172a'
+                let dayTitle = 'View availability for this date'
+
+                if (dayState === 'fully-booked' || dayState === 'booked-only') {
+                  borderColor = '#fda4af'
+                  backgroundColor = '#ffe4e6'
+                  textColor = '#be123c'
+                  dayTitle = 'Fully booked'
+                } else if (dayState === 'partially-booked') {
+                  borderColor = '#fbbf24'
+                  backgroundColor = '#fef3c7'
+                  textColor = '#92400e'
+                  dayTitle = 'Partially available'
+                } else if (dayState === 'fully-available') {
+                  borderColor = '#86efac'
+                  backgroundColor = '#dcfce7'
+                  textColor = '#166534'
+                  dayTitle = 'Fully available'
+                }
+
+                if (isToday && dayState === 'unknown') {
+                  borderColor = '#93c5fd'
+                }
+
+                if (isSelected) {
+                  borderColor = '#2563eb'
+                  backgroundColor = '#dbeafe'
+                  textColor = '#1d4ed8'
+                }
 
                 return (
                   <button
                     key={dateKey}
                     type="button"
                     onClick={() => setSelectedCalendarDateKey(dateKey)}
-                    title={isBooked ? 'Booked slots available on this date' : 'View availability for this date'}
+                    title={dayTitle}
                     style={{
                       minHeight: '24px',
                       borderRadius: '7px',
-                      border: `1px solid ${
-                        isSelected ? '#2563eb' : isBooked ? '#fda4af' : isToday ? '#93c5fd' : '#e2e8f0'
-                      }`,
-                      background: isSelected ? '#dbeafe' : isBooked ? '#ffe4e6' : '#fff',
-                      color: !isInRange ? '#94a3b8' : isBooked ? '#be123c' : '#0f172a',
+                      border: `1px solid ${borderColor}`,
+                      background: backgroundColor,
+                      color: !isInRange ? '#94a3b8' : textColor,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '0.72rem',
-                      fontWeight: isBooked || isSelected ? 700 : 500,
+                      fontWeight: dayState !== 'unknown' || isSelected ? 700 : 500,
                       cursor: 'pointer',
                       opacity: isInRange ? 1 : 0.45,
                     }}
@@ -874,6 +1065,25 @@ export default function Catalogue() {
                   </button>
                 )
               })}
+            </div>
+
+            <div style={{
+              marginTop: '0.55rem',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+              fontSize: '0.68rem',
+              color: '#475569'
+            }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: '0.55rem', height: '0.55rem', borderRadius: '50%', background: '#f87171' }} /> Fully booked
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: '0.55rem', height: '0.55rem', borderRadius: '50%', background: '#fbbf24' }} /> Partially available
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: '0.55rem', height: '0.55rem', borderRadius: '50%', background: '#4ade80' }} /> Fully available
+              </span>
             </div>
 
             <div style={{
@@ -981,6 +1191,90 @@ export default function Catalogue() {
                         Daily availability hours are not set for this resource.
                       </div>
                     )}
+                  </div>
+
+                  <div style={{
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    padding: '0.65rem',
+                  }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '0.45rem' }}>
+                      Real-time availability check
+                    </div>
+
+                    {selectedDateBookableSlots.length > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                        <select
+                          value={selectedSlotKey}
+                          onChange={(e) => {
+                            setSelectedSlotKey(e.target.value)
+                            setBookingFeedback(null)
+                          }}
+                          style={{
+                            minWidth: '132px',
+                            padding: '0.35rem 0.45rem',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '8px',
+                            background: '#fff',
+                            fontSize: '0.76rem',
+                          }}
+                        >
+                          {selectedDateBookableSlots.map((slot) => {
+                            const optionKey = `${slot.start.toISOString()}|${slot.end.toISOString()}`
+                            return (
+                              <option key={optionKey} value={optionKey}>
+                                {formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}
+                              </option>
+                            )
+                          })}
+                        </select>
+
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          color: '#166534',
+                          background: '#dcfce7',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '999px',
+                          padding: '0.18rem 0.45rem',
+                        }}>
+                          Available
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={handleBookSelectedSlot}
+                          disabled={bookingInProgress || !selectedSlotKey}
+                          style={{
+                            padding: '0.38rem 0.7rem',
+                            borderRadius: '8px',
+                            border: '1px solid #bfdbfe',
+                            background: bookingInProgress ? '#cbd5e1' : '#93c5fd',
+                            color: '#0f172a',
+                            fontWeight: 700,
+                            cursor: bookingInProgress ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {bookingInProgress ? 'Booking...' : 'Book Selected Slot'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                        No bookable one-hour slots left for this date.
+                      </div>
+                    )}
+
+                    {bookingFeedback ? (
+                      <div style={{
+                        marginTop: '0.55rem',
+                        fontSize: '0.74rem',
+                        color: bookingFeedback.type === 'success' ? '#166534' : '#b91c1c',
+                        fontWeight: 600,
+                      }}>
+                        {bookingFeedback.text}
+                      </div>
+                    ) : null}
                   </div>
                 </>
               )}

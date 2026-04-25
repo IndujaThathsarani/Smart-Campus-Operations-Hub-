@@ -19,6 +19,12 @@ public class ResourceService {
     }
 
     public Resource createResource(Resource resource) {
+        if (resource.getType() != ResourceType.EQUIPMENT) {
+            resource.setEquipmentImage(null);
+        } else if (resource.getEquipmentImage() != null && resource.getEquipmentImage().isBlank()) {
+            resource.setEquipmentImage(null);
+        }
+
         return resourceRepository.save(resource);
     }
 
@@ -44,6 +50,12 @@ public class ResourceService {
         existing.setAvailabilityEnd(updatedResource.getAvailabilityEnd());
         existing.setStatus(updatedResource.getStatus());
         existing.setDescription(updatedResource.getDescription());
+
+        if (updatedResource.getType() != ResourceType.EQUIPMENT) {
+            existing.setEquipmentImage(null);
+        } else if (updatedResource.getEquipmentImage() != null && !updatedResource.getEquipmentImage().isBlank()) {
+            existing.setEquipmentImage(updatedResource.getEquipmentImage());
+        }
 
         return resourceRepository.save(existing);
     }

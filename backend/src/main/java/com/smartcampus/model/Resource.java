@@ -17,6 +17,7 @@ public class Resource {
     private String availabilityEnd;
     private String status;
     private String description;
+    private String equipmentImage;
 
     public String getId() {
         return id;
@@ -104,5 +105,13 @@ public class Resource {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getEquipmentImage() {
+        return equipmentImage;
+    }
+
+    public void setEquipmentImage(String equipmentImage) {
+        this.equipmentImage = equipmentImage;
     }
 }

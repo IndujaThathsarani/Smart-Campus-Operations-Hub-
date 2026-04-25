@@ -1,11 +1,16 @@
 package com.smartcampus.controller;
 
 import com.smartcampus.model.Resource;
+import com.smartcampus.service.ResourceReportPdfService;
 import com.smartcampus.service.ResourceService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +21,11 @@ import java.util.Map;
 public class ResourceController {
 
     private final ResourceService resourceService;
+    private final ResourceReportPdfService resourceReportPdfService;
 
-    public ResourceController(ResourceService resourceService) {
+    public ResourceController(ResourceService resourceService, ResourceReportPdfService resourceReportPdfService) {
         this.resourceService = resourceService;
+        this.resourceReportPdfService = resourceReportPdfService;
     }
 
     /**
@@ -70,6 +77,26 @@ public class ResourceController {
             error.put("error", "CREATION_FAILED");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    @GetMapping(value = "/report", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<?> downloadResourceManagementReport() {
+        try {
+            byte[] reportBytes = resourceReportPdfService.generateResourceManagementReport();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDisposition(ContentDisposition.attachment()
+                    .filename("resource-management-report-" + LocalDate.now() + ".pdf")
+                    .build());
+
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "REPORT_GENERATION_FAILED");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
