@@ -8,6 +8,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import Catalogue from "./pages/resources/Catalogue";
 import AdminCatalogue from "./pages/resources/AdminCatalogue";
 import BookingsPage from "./pages/bookings/BookingsPage";
+import AdminBookingsPage from "./pages/bookings/AdminBookingsPage";
 import TicketCreatePage from "./pages/tickets/TicketCreatePage";
 import TicketsListPage from "./pages/tickets/TicketsListPage";
 import AdminTicketsPage from "./pages/tickets/AdminTicketsPage";
@@ -63,6 +64,15 @@ export default function App() {
               ]}
             >
               <BookingsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/bookings"
+          element={
+            <ProtectedRoute allowedRoles={["ROLE_ADMIN", "ROLE_SYSTEM_ADMIN"]}>
+              <AdminBookingsPage />
             </ProtectedRoute>
           }
         />
