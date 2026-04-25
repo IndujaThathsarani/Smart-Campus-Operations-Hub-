@@ -101,6 +101,9 @@ export default function AdminTicketsPage() {
   const [assignSavingId, setAssignSavingId] = useState(null)
   const [assignError, setAssignError] = useState(null)
   const [assignSuccess, setAssignSuccess] = useState(null)
+  const [technicians, setTechnicians] = useState([])
+  const [techniciansLoading, setTechniciansLoading] = useState(false)
+  const [techniciansError, setTechniciansError] = useState(null)
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
@@ -144,6 +147,20 @@ export default function AdminTicketsPage() {
     }
   }, [filterStatus, filterPriority, filterCategory])
 
+  const loadTechnicians = useCallback(async () => {
+    setTechniciansLoading(true)
+    setTechniciansError(null)
+    try {
+      const data = await apiGet('/api/tickets/technicians')
+      setTechnicians(Array.isArray(data) ? data : [])
+    } catch (e) {
+      setTechnicians([])
+      setTechniciansError(e?.body?.message || e?.message || 'Could not load technicians.')
+    } finally {
+      setTechniciansLoading(false)
+    }
+  }, [])
+
   const refreshTickets = useCallback(async () => {
     if (activeTab === 'filters') {
       await loadFilteredTickets()
@@ -169,6 +186,12 @@ export default function AdminTicketsPage() {
       loadFilteredTickets()
     }
   }, [activeTab, loadFilteredTickets])
+
+  useEffect(() => {
+    if (activeTab === 'assign_staff') {
+      loadTechnicians()
+    }
+  }, [activeTab, loadTechnicians])
 
   const getDraft = useCallback(
     (ticket) => {
@@ -269,6 +292,11 @@ export default function AdminTicketsPage() {
   const updateAssignDraft = useCallback((ticketId, value) => {
     setAssignDrafts((prev) => ({ ...prev, [ticketId]: value }))
   }, [])
+
+  const refreshAssignmentData = useCallback(() => {
+    loadTickets()
+    loadTechnicians()
+  }, [loadTechnicians, loadTickets])
 
   const handleSaveAssignment = useCallback(
     async (ticket) => {
@@ -833,7 +861,7 @@ export default function AdminTicketsPage() {
               <div className="flex shrink-0 justify-end border-b border-slate-200 bg-white px-4 py-2">
                 <button
                   type="button"
-                  onClick={loadTickets}
+                  onClick={refreshAssignmentData}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
                 >
                   Refresh
@@ -848,6 +876,11 @@ export default function AdminTicketsPage() {
               {assignSuccess && (
                 <p className="shrink-0 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
                   {assignSuccess}
+                </p>
+              )}
+              {techniciansError && (
+                <p className="shrink-0 border-b border-amber-100 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+                  {techniciansError}
                 </p>
               )}
 
@@ -927,15 +960,29 @@ export default function AdminTicketsPage() {
                               <StatusPill status={ticket.status} />
                             </td>
                             <td className="border-b border-gray-100 px-3 py-2">
-                              <input
-                                type="text"
-                                placeholder="Name or staff ID"
+                              <select
                                 value={draft}
                                 onChange={(e) => updateAssignDraft(ticket.id, e.target.value)}
-                                disabled={isSaving || deletingId === ticket.id}
-                                maxLength={200}
+                                disabled={
+                                  isSaving ||
+                                  deletingId === ticket.id ||
+                                  techniciansLoading
+                                }
                                 className="w-full min-w-[12rem] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:bg-gray-100"
-                              />
+                              >
+                                <option value="">
+                                  {techniciansLoading ? 'Loading technicians...' : 'Unassigned'}
+                                </option>
+                                {draft &&
+                                  !technicians.some((technician) => technician.label === draft) && (
+                                    <option value={draft}>{draft}</option>
+                                  )}
+                                {technicians.map((technician) => (
+                                  <option key={technician.id} value={technician.label}>
+                                    {technician.label}
+                                  </option>
+                                ))}
+                              </select>
                             </td>
                             <td className="border-b border-gray-100 px-3 py-2">
                               <div className="flex justify-end gap-2">
