@@ -100,7 +100,7 @@ const HomePage = () => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
-      className="overflow-hidden bg-slate-50 text-slate-900 w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] mt-[-1.5rem] mb-[-1.5rem]"
+      className="w-full overflow-hidden bg-slate-50 text-slate-900"
     >
       <section className="relative isolate overflow-hidden">
         <div
