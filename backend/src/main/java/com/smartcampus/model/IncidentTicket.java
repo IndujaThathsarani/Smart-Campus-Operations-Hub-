@@ -45,6 +45,8 @@ public class IncidentTicket {
 
     private String resourceId;
 
+    private String subject;
+
     private String location;
 
     private Category category;
@@ -93,6 +95,14 @@ public class IncidentTicket {
 
     public void setResourceId(String resourceId) {
         this.resourceId = resourceId;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
     }
 
     public String getLocation() {

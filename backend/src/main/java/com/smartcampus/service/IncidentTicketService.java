@@ -55,6 +55,7 @@ public class IncidentTicketService {
     // Create incident ticket with attachments and optional resource linking (validates and sets resourceId)
     public IncidentTicket createWithAttachments(
             String resourceIdRaw,
+            String subjectRaw,
             String location,
             String categoryRaw,
             String priorityRaw,
@@ -71,8 +72,15 @@ public class IncidentTicketService {
         String email = blankToNull(contactEmail);
         String phone = blankToNull(contactPhone);
         String resourceId = blankToNull(resourceIdRaw);
+        String subject = blankToNull(subjectRaw);
         if (email == null && phone == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provide at least an email or a phone number");
+        }
+        if (subject == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subject is required");
+        }
+        if (subject.length() > 160) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subject must be at most 160 characters");
         }
         if (resourceId != null) {
             Query resourceQuery = new Query(Criteria.where("_id").is(resourceId));
@@ -115,6 +123,7 @@ public class IncidentTicketService {
 
         IncidentTicket ticket = new IncidentTicket();
         ticket.setResourceId(resourceId);
+        ticket.setSubject(subject);
         ticket.setLocation(loc);
         ticket.setCategory(category);
         ticket.setPriority(priority);
