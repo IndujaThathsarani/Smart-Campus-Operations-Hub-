@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  FaBan,
-  FaEye,
-  FaFloppyDisk,
-  FaPaperPlane,
-  FaPenToSquare,
-  FaUserPen,
-} from 'react-icons/fa6'
+import { Ban, ClipboardList, Eye, ImageIcon, MessageSquareText, Pencil, Save, Send, Ticket, Trash2, User, Users, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
-import TicketSlaBadges from '../../components/TicketSlaBadges'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
 import { useAuth } from '../../context/AuthContext'
 import { useActionToasts } from '../../hooks/useActionToasts'
 import { API_BASE_URL, apiGet, apiSend } from '../../services/apiClient'
 
 const ADMIN_TABS = [
-  { id: 'view_all', label: 'View all tickets' },
-  { id: 'change_status', label: 'Update ticket status' },
-  { id: 'reject_reason', label: 'Reject tickets' },
-  { id: 'assign_staff', label: 'Assign to technicians' },
+  { id: 'view_all', label: 'View all tickets', icon: ClipboardList },
+  { id: 'change_status', label: 'Update ticket status', icon: Pencil },
+  { id: 'reject_reason', label: 'Reject tickets', icon: Ban },
+  { id: 'assign_staff', label: 'Assign to technicians', icon: Users },
 ]
 
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
@@ -141,6 +133,8 @@ export default function AdminTicketsPage() {
   const [adminViewFilter, setAdminViewFilter] = useState('all')
   const [expandedTickets, setExpandedTickets] = useState({})
   const [inlineCardActions, setInlineCardActions] = useState({})
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteSavingId, setDeleteSavingId] = useState(null)
   const [clockTick, setClockTick] = useState(() => Date.now())
 
   const loadTickets = useCallback(async () => {
@@ -373,6 +367,37 @@ export default function AdminTicketsPage() {
     [clearInlineCardAction, getAssignDraft, pushToast, refreshTickets],
   )
 
+  const closeDeleteDialog = useCallback(() => {
+    if (deleteSavingId) return
+    setDeleteTarget(null)
+  }, [deleteSavingId])
+
+  const handleDeleteTicket = useCallback(async () => {
+    if (!deleteTarget?.id) return
+
+    setDeleteSavingId(deleteTarget.id)
+    try {
+      await apiSend(`/api/tickets/${deleteTarget.id}`, {
+        method: 'DELETE',
+      })
+      pushToast({
+        title: 'Deleted',
+        message: `Ticket ${displayTicketId(deleteTarget)} was deleted successfully.`,
+        variant: 'success',
+      })
+      setDeleteTarget(null)
+      await refreshTickets()
+    } catch (e) {
+      pushToast({
+        title: 'Could not delete ticket',
+        message: e?.body?.message || e?.message || 'Could not delete ticket.',
+        variant: 'error',
+      })
+    } finally {
+      setDeleteSavingId(null)
+    }
+  }, [deleteTarget, pushToast, refreshTickets])
+
   const viewAllCards = useMemo(() => {
     const counts = {
       all: tickets.length,
@@ -410,19 +435,15 @@ export default function AdminTicketsPage() {
   const tabMeta = {
     view_all: {
       title: 'View all tickets',
-      description: 'Browse tickets and open the details you need without leaving the page.',
     },
     change_status: {
       title: 'Update ticket status',
-      description: 'Choose a status, save it inline, and keep moving.',
     },
     reject_reason: {
       title: 'Reject tickets',
-      description: 'Add the reason first, then reject from the ticket card itself.',
     },
     assign_staff: {
       title: 'Assign to technicians',
-      description: 'Pick a technician and assign the ticket right where you are.',
     },
   }
 
@@ -452,7 +473,7 @@ export default function AdminTicketsPage() {
               disabled={statusSavingId === ticket.id}
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <FaFloppyDisk className="text-[0.9em]" />
+              <Save className="h-4 w-4" strokeWidth={2.2} />
               {statusSavingId === ticket.id ? 'Saving...' : 'Save status'}
             </button>
           </div>
@@ -478,7 +499,7 @@ export default function AdminTicketsPage() {
             disabled={rejectSavingId === ticket.id}
             className="inline-flex items-center gap-1.5 rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <FaPaperPlane className="text-[0.9em]" />
+            <Send className="h-4 w-4" strokeWidth={2.2} />
             {rejectSavingId === ticket.id ? 'Submitting...' : 'Reject'}
           </button>
         </div>
@@ -513,7 +534,7 @@ export default function AdminTicketsPage() {
               disabled={assignSavingId === ticket.id || techniciansLoading}
               className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-700 px-3 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <FaUserPen className="text-[0.9em]" />
+              <User className="h-4 w-4" strokeWidth={2.2} />
               {assignSavingId === ticket.id ? 'Saving...' : 'Assign'}
             </button>
           </div>
@@ -539,106 +560,82 @@ export default function AdminTicketsPage() {
         className="ticket-enter mx-auto w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[74%]"
         style={{ animationDelay: `${index * 80}ms` }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <span className="block break-all font-mono text-sm font-medium text-slate-700" title={ticket.id}>
-              {displayTicketId(ticket)}
+        <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center justify-center py-2">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm">
+              <Ticket className="h-8 w-8" strokeWidth={2.2} />
             </span>
-            <p className="mt-2 text-lg font-semibold text-slate-900">{displaySubject(ticket)}</p>
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setExpandedTickets((prev) => ({ ...prev, [ticketKey]: !prev[ticketKey] }))}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
-              >
-                <FaEye className="text-[0.9em]" />
-                {isExpanded ? 'Hide details' : 'View all'}
-              </button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              {actionMode === 'all' ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => toggleInlineCardAction(ticketKey, 'status')}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100"
-                  >
-                    <FaPenToSquare className="text-[0.9em]" />
-                    Update
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleInlineCardAction(ticketKey, 'reject')}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
-                  >
-                    <FaBan className="text-[0.9em]" />
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleInlineCardAction(ticketKey, 'assign')}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100"
-                  >
-                    <FaUserPen className="text-[0.9em]" />
-                    Assign
-                  </button>
-                </>
-              ) : actionMode === 'status' ? (
-                <button
-                  type="button"
-                  onClick={() => toggleInlineCardAction(ticketKey, 'status')}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100"
-                >
-                  <FaPenToSquare className="text-[0.9em]" />
-                  Update
-                </button>
-              ) : actionMode === 'reject' ? (
-                <button
-                  type="button"
-                  onClick={() => toggleInlineCardAction(ticketKey, 'reject')}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
-                >
-                  <FaBan className="text-[0.9em]" />
-                  Reject
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => toggleInlineCardAction(ticketKey, 'assign')}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100"
-                >
-                  <FaUserPen className="text-[0.9em]" />
-                  Assign
-                </button>
-              )}
-            </div>
-
-            {renderActionPanel(ticket, ticketKey, cardAction)}
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <div className="max-w-full">
-              <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} compact />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <span className="block break-all font-mono text-sm font-medium text-slate-700" title={ticket.id}>
+                  {displayTicketId(ticket)}
+                </span>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{displaySubject(ticket)}</p>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedTickets((prev) => ({ ...prev, [ticketKey]: !prev[ticketKey] }))}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
+                  >
+                    <Eye className="h-4 w-4" strokeWidth={2.2} />
+                    {isExpanded ? 'Hide details' : 'View all'}
+                  </button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {actionMode === 'status' ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleInlineCardAction(ticketKey, 'status')}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100"
+                    >
+                      <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                      Update
+                    </button>
+                  ) : actionMode === 'reject' ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleInlineCardAction(ticketKey, 'reject')}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
+                    >
+                      <Ban className="h-4 w-4" strokeWidth={2.2} />
+                      Reject
+                    </button>
+                  ) : null}
+                </div>
+
+                {renderActionPanel(ticket, ticketKey, actionMode === 'assign' ? 'assign' : cardAction)}
+              </div>
+
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <div className="max-w-full">
+                  <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} compact />
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <StatusPill status={ticket.status} />
+                  <span className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}>
+                    {ticket.priority || '—'}
+                  </span>
+                </div>
+                <p className="text-right text-sm text-gray-600">
+                  <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
+                </p>
+                {actionMode === 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(ticket)}
+                    aria-label={`Delete ticket ${displayTicketId(ticket)}`}
+                    title="Delete ticket"
+                    className="inline-flex h-9 w-9 items-center justify-center self-end rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2.2} />
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <StatusPill status={ticket.status} />
-              <span className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}>
-                {ticket.priority || '—'}
-              </span>
-            </div>
-            <p className="text-right text-sm text-gray-600">
-              <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
-            </p>
-            <TicketSlaBadges
-              priority={ticket.priority}
-              createdAt={ticket.createdAt}
-              firstResponseAt={ticket.firstResponseAt}
-              resolvedAt={ticket.resolvedAt}
-              status={ticket.status}
-              now={clockTick}
-              className="justify-end"
-            />
           </div>
         </div>
 
@@ -653,10 +650,19 @@ export default function AdminTicketsPage() {
               {ticket.description || 'No description provided.'}
             </p>
 
+            {ticket.status === 'REJECTED' && (
+              <div className="mt-3 max-w-xs">
+                <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} />
+              </div>
+            )}
+
             {attachmentFiles.length > 0 && (
               <div className="mt-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="m-0 text-sm font-semibold text-slate-900">Evidence images</p>
+                  <p className="m-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <ImageIcon className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+                    Evidence images
+                  </p>
                   <span className="text-xs text-slate-500">
                     {attachmentFiles.length} {attachmentFiles.length === 1 ? 'image' : 'images'}
                   </span>
@@ -695,7 +701,10 @@ export default function AdminTicketsPage() {
             {ticketComments.length > 0 && (
               <div className="mt-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="m-0 text-sm font-semibold text-slate-900">Comments</p>
+                  <p className="m-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <MessageSquareText className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+                    Comments
+                  </p>
                   <span className="text-xs text-slate-500">
                     {ticketComments.length} {ticketComments.length === 1 ? 'comment' : 'comments'}
                   </span>
@@ -736,7 +745,46 @@ export default function AdminTicketsPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col overflow-hidden bg-slate-100 text-slate-900 md:flex-row">
       <ActionToasts toasts={toasts} onDismiss={dismissToast} />
-      <aside className="border-b border-slate-200 bg-slate-950 text-white md:w-72 md:shrink-0 md:border-b-0 md:border-r md:border-slate-800">
+      {deleteTarget && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-[2px]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-ticket-title"
+            aria-describedby="delete-ticket-message"
+            className="w-full max-w-md rounded-[1.75rem] border border-rose-200 bg-white p-6 shadow-[0_28px_60px_rgba(15,23,42,0.22)]"
+          >
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-4 border-rose-200 bg-rose-50 text-rose-600">
+              <Trash2 className="h-8 w-8" strokeWidth={2.2} />
+            </div>
+            <h2 id="delete-ticket-title" className="mt-5 text-center text-2xl font-semibold text-slate-900">
+              Delete ticket?
+            </h2>
+            <p id="delete-ticket-message" className="mt-3 text-center text-sm leading-6 text-slate-500">
+              Ticket {displayTicketId(deleteTarget)} will be permanently deleted. This action cannot be undone.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                disabled={deleteSavingId === deleteTarget.id}
+                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition duration-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTicket}
+                disabled={deleteSavingId === deleteTarget.id}
+                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-rose-600 px-4 text-sm font-semibold text-white transition duration-200 hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleteSavingId === deleteTarget.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <aside className="border-b border-slate-200 bg-slate-950 text-white md:flex md:min-h-[calc(100vh-4rem)] md:w-72 md:shrink-0 md:flex-col md:border-b-0 md:border-r md:border-slate-800">
         <div className="border-b border-white/10 px-5 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
             Admin
@@ -745,10 +793,11 @@ export default function AdminTicketsPage() {
         </div>
         <nav
           aria-label="Admin ticket tasks"
-          className="flex flex-row gap-2 overflow-x-auto p-3 md:flex-col md:overflow-visible"
+          className="flex flex-row gap-2 overflow-x-auto p-3 md:flex-1 md:flex-col md:justify-evenly md:overflow-visible md:px-3 md:py-6"
         >
           {ADMIN_TABS.map((tab) => {
             const isActive = activeTab === tab.id
+            const Icon = tab.icon
             return (
               <button
                 key={tab.id}
@@ -760,7 +809,10 @@ export default function AdminTicketsPage() {
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {tab.label}
+                <span className="inline-flex items-center gap-2">
+                  <Icon className="h-4 w-4" strokeWidth={2.2} />
+                  {tab.label}
+                </span>
               </button>
             )
           })}
@@ -774,8 +826,10 @@ export default function AdminTicketsPage() {
           </p>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">{tabMeta[activeTab].title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{tabMeta[activeTab].description}</p>
+              <h2 className="inline-flex items-center gap-2 text-2xl font-semibold text-slate-900">
+                <Wrench className="h-6 w-6 text-sky-700" strokeWidth={2.2} />
+                {tabMeta[activeTab].title}
+              </h2>
             </div>
           </div>
         </div>

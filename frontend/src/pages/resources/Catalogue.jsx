@@ -606,12 +606,9 @@ export default function Catalogue() {
     <div
       style={{
         display: 'flex',
-        minHeight: '100vh',
+        minHeight: 'calc(100vh - 4rem)',
         backgroundColor: '#f3f4f6',
-        width: '100vw',
-        marginLeft: 'calc(50% - 50vw)',
-        marginRight: 'calc(50% - 50vw)',
-        marginTop: '-1.5rem',
+        width: '100%',
         overflowX: 'hidden',
       }}
     >
@@ -622,8 +619,10 @@ export default function Catalogue() {
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',
-        position: 'fixed',
-        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        alignSelf: 'flex-start',
+        height: 'calc(100vh - 4rem)',
         overflowY: 'auto'
       }}>
         {/* Logo / Brand */}
@@ -703,7 +702,7 @@ export default function Catalogue() {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main style={{ flex: 1, marginLeft: '280px', padding: '1.5rem' }}>
+      <main style={{ flex: 1, minWidth: 0, padding: '1.5rem' }}>
         {/* Header with active category */}
         <div style={{ marginBottom: '1.5rem' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>

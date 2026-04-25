@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, FileImage, FileText, Send, TicketPlus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 import { useResources } from '../../hooks/useResources'
@@ -141,12 +142,16 @@ export default function TicketCreatePage() {
   return (
     <section className="mx-auto flex h-full w-full max-w-xl min-h-0 flex-col">
       <div className="mb-2">
-        <Link to="/tickets" className="text-sm text-gray-600 hover:text-slate-900 hover:underline">
-          {'<-'} Back to tickets
+        <Link to="/tickets" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-slate-900 hover:underline">
+          <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
+          Back to tickets
         </Link>
       </div>
 
-      <h1 className="mb-1.5 text-xl font-semibold text-slate-900">New incident ticket</h1>
+      <h1 className="mb-1.5 inline-flex items-center gap-2 text-xl font-semibold text-slate-900">
+        <TicketPlus className="h-5 w-5 text-sky-700" strokeWidth={2.2} />
+        New incident ticket
+      </h1>
 
       {submitPhase === 'error' && submitError && (
         <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800" role="alert">
@@ -159,7 +164,10 @@ export default function TicketCreatePage() {
         onSubmit={handleSubmit}
         noValidate
       >
-        <h2 className="mb-3 text-base font-semibold text-gray-900">Report details</h2>
+        <h2 className="mb-3 inline-flex items-center gap-2 text-base font-semibold text-gray-900">
+          <FileText className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+          Report details
+        </h2>
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -285,7 +293,10 @@ export default function TicketCreatePage() {
           </div>
 
           <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-3 py-2.5">
-            <label htmlFor="evidence" className="mb-1 block text-sm font-semibold text-gray-700">Evidence images</label>
+            <label htmlFor="evidence" className="mb-1 inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <FileImage className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+              Evidence images
+            </label>
             <p className="mb-3 text-xs text-gray-500">
               Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not required — use the file picker.
             </p>
@@ -327,9 +338,10 @@ export default function TicketCreatePage() {
           <div className="mt-1 border-t border-gray-200 pt-3">
             <button
               type="submit"
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
+              className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
               disabled={!canSubmit || submitting}
             >
+              <Send className="h-4 w-4" strokeWidth={2.2} />
               {submitting ? 'Submitting…' : 'Submit ticket'}
             </button>
           </div>
@@ -338,6 +350,5 @@ export default function TicketCreatePage() {
     </section>
   )
 }
-
 
 

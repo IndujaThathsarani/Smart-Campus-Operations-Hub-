@@ -1,4 +1,5 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Eye, ImageIcon, MessageSquareText, Pencil, Ticket, Trash2, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
 import { useAuth } from '../../context/AuthContext'
 import { useActionToasts } from '../../hooks/useActionToasts'
@@ -438,29 +439,20 @@ export default function TechnicianTicketsDashboard() {
   return (
     <section className="relative w-full max-w-none">
       <ActionToasts toasts={toasts} onDismiss={dismissToast} />
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-5 flex flex-col gap-3">
         <div className="min-w-0 flex-1 sm:pr-4">
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
+          <p className="mb-1.5 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
             Technician dashboard
           </p>
-          <h1 className="text-3xl font-semibold text-slate-900">Maintenance ticket overview</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-            See the latest work queue, ticket status breakdowns, and assigned maintenance requests in one place.
-          </p>
-        </div>
-        <div className="flex flex-none flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={loadTickets}
-            className="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-md"
-          >
-            Refresh list
-          </button>
+          <h1 className="inline-flex items-center gap-2 text-3xl font-semibold text-slate-900">
+            <Wrench className="h-7 w-7 text-sky-700" strokeWidth={2.2} />
+            Maintenance ticket overview
+          </h1>
         </div>
       </header>
 
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           {STATUS_TABS.map((status) => {
             const isActive = activeStatus === status
             const label = status === 'ASSIGNED' ? 'Assigned tickets' : formatEnum(status)
@@ -474,7 +466,7 @@ export default function TechnicianTicketsDashboard() {
                 key={status}
                 type="button"
                 onClick={() => setActiveStatus(status)}
-                className={`rounded-lg border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                className={`rounded-lg border px-4 py-2.5 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
                   isActive
                     ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                     : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
@@ -487,7 +479,7 @@ export default function TechnicianTicketsDashboard() {
                 >
                   {label}
                 </p>
-                <p className={`mt-2 text-3xl font-semibold ${isActive ? 'text-white' : ''}`}>
+                <p className={`mt-1.5 text-2xl font-semibold leading-none ${isActive ? 'text-white' : ''}`}>
                   {value}
                 </p>
               </button>
@@ -529,82 +521,52 @@ export default function TechnicianTicketsDashboard() {
             )}
 
             {!loading && !error && filteredTickets.length > 0 && (
-              <div className="mt-6 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-                <table className="min-w-full border-separate border-spacing-0 text-sm">
-                  <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_rgb(226,232,240)]">
-                    <tr>
-                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
-                        Ticket ID
-                      </th>
-                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
-                        Subject
-                      </th>
-                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
-                        Location
-                      </th>
-                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
-                        Priority
-                      </th>
-                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
-                        Status
-                      </th>
-                      <th className="border-b border-gray-200 px-3 py-3 text-left font-semibold text-slate-700">
-                        Created
-                      </th>
-                      <th className="border-b border-gray-200 px-3 py-3 text-right font-semibold text-slate-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTickets.map((ticket) => {
-                          const visibleComments = (ticket.comments || []).filter((comment) => !comment.hidden)
-                          const commentDraft = commentDrafts[ticket.id] || ''
-                          const isCommentSaving = commentSavingTicketId === ticket.id
-                          const isExpanded = Boolean(expandedTickets[ticket.id])
-                          const rowAction = rowActions[ticket.id] || null
-                          const attachmentFiles = Array.isArray(ticket.attachmentFileNames)
-                            ? ticket.attachmentFileNames.filter(Boolean)
-                            : []
+              <ul className="mt-6 m-0 flex list-none flex-col gap-3 p-0">
+                {filteredTickets.map((ticket, index) => {
+                  const visibleComments = (ticket.comments || []).filter((comment) => !comment.hidden)
+                  const commentDraft = commentDrafts[ticket.id] || ''
+                  const isCommentSaving = commentSavingTicketId === ticket.id
+                  const isExpanded = Boolean(expandedTickets[ticket.id])
+                  const rowAction = rowActions[ticket.id] || null
+                  const attachmentFiles = Array.isArray(ticket.attachmentFileNames)
+                    ? ticket.attachmentFileNames.filter(Boolean)
+                    : []
 
-                      return (
-                        <Fragment key={ticket.id}>
-                          <tr className="odd:bg-white even:bg-slate-50/60 transition-all duration-200 hover:relative hover:z-[1] hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(15,23,42,0.14)]">
-                            <td className="border-b border-gray-100 px-3 py-3 font-mono text-xs text-slate-600">
-                              {ticketLabel(ticket)}
-                            </td>
-                            <td className="border-b border-gray-100 px-3 py-3 text-slate-900">
-                              {displaySubject(ticket)}
-                            </td>
-                            <td className="border-b border-gray-100 px-3 py-3 text-slate-700">
-                              {ticket.location || '—'}
-                            </td>
-                            <td className="border-b border-gray-100 px-3 py-3">
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${priorityClasses(ticket.priority)}`}
-                              >
-                                {ticket.priority || '—'}
+                  return (
+                    <li
+                      key={ticket.id}
+                      className="ticket-enter mx-auto w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[74%]"
+                      style={{ animationDelay: `${index * 80}ms` }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex shrink-0 items-center justify-center py-2">
+                          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm">
+                            <Ticket className="h-8 w-8" strokeWidth={2.2} />
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <span className="block break-all font-mono text-sm font-medium text-slate-700" title={ticket.id}>
+                                {ticketLabel(ticket)}
                               </span>
-                            </td>
-                            <td className="border-b border-gray-100 px-3 py-3">
-                              <StatusPill status={ticket.status} />
-                            </td>
-                            <td className="border-b border-gray-100 px-3 py-3 text-slate-600">
-                              <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
-                            </td>
-                            <td className="border-b border-gray-100 px-3 py-3 text-right">
-                              <div className="flex flex-wrap justify-end gap-2">
+                              <p className="mt-2 text-lg font-semibold text-slate-900">{displaySubject(ticket)}</p>
+                              <p className="mt-1 text-sm text-slate-500">{ticket.location || '—'}</p>
+
+                              <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   onClick={() => toggleExpandedTicket(ticket.id)}
-                                  className="inline-flex items-center rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
                                 >
-                                  {isExpanded ? 'Hide details' : 'View details'}
+                                  <Eye className="h-4 w-4" strokeWidth={2.2} />
+                                  {isExpanded ? 'Hide details' : 'View all'}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => toggleRowAction(ticket.id, 'status')}
-                                  className={`inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                                  className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
                                     rowAction === 'status'
                                       ? 'border-slate-900 bg-slate-900 text-white'
                                       : 'border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100'
@@ -615,7 +577,7 @@ export default function TechnicianTicketsDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => toggleRowAction(ticket.id, 'reject')}
-                                  className={`inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
+                                  className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
                                     rowAction === 'reject'
                                       ? 'border-slate-900 bg-slate-900 text-white'
                                       : 'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100'
@@ -624,251 +586,273 @@ export default function TechnicianTicketsDashboard() {
                                   Reject
                                 </button>
                               </div>
-                            </td>
-                          </tr>
+                            </div>
+
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <div className="max-w-full">
+                                <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} compact />
+                              </div>
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                <StatusPill status={ticket.status} />
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}
+                                >
+                                  {ticket.priority || '—'}
+                                </span>
+                              </div>
+                              <p className="text-right text-sm text-gray-600">
+                                <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
+                              </p>
+                            </div>
+                          </div>
 
                           {isExpanded && (
-                            <tr className="bg-slate-50/80">
-                              <td colSpan={7} className="border-b border-slate-100 px-4 py-4">
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-                                  <div className="min-w-0">
-                                    <p className="text-base text-slate-600">
-                                      <span>{formatEnum(ticket.category)}</span>
-                                      <span className="mx-2 text-slate-300">·</span>
-                                      <span>{ticket.assignedTo || 'Unassigned'}</span>
-                                    </p>
-                                    <p className="mt-2 text-base leading-7 text-slate-800">
-                                      {ticket.description || 'No description provided.'}
-                                    </p>
+                            <div className="mt-3 border-t border-slate-200 pt-3">
+                              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+                                <div className="min-w-0">
+                                  <p className="text-base text-slate-600">
+                                    <span>{formatEnum(ticket.category)}</span>
+                                    <span className="mx-2 text-slate-300">·</span>
+                                    <span>{ticket.assignedTo || 'Unassigned'}</span>
+                                  </p>
+                                  <p className="mt-2 text-base leading-7 text-slate-800">
+                                    {ticket.description || 'No description provided.'}
+                                  </p>
 
-                                    <div className="mt-3">
-                                      <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} />
-                                    </div>
-
-                                    {rowAction === 'status' && (
-                                      <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
-                                        <label className="mb-1 block text-xs font-medium text-slate-600">
-                                          Change status
-                                        </label>
-                                        <div className="flex flex-wrap items-end gap-2">
-                                          <select
-                                            value={getStatusDraft(ticket)}
-                                            onChange={(e) => updateStatusDraft(ticket.id, e.target.value)}
-                                            disabled={statusSavingTicketId === ticket.id}
-                                            className="min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                          >
-                                            {STATUS_OPTIONS.map((status) => (
-                                              <option key={status} value={status}>
-                                                {formatEnum(status)}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleSaveStatus(ticket)}
-                                            disabled={statusSavingTicketId === ticket.id}
-                                            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
-                                          >
-                                            {statusSavingTicketId === ticket.id ? 'Saving...' : 'Save status'}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {rowAction === 'reject' && (
-                                      <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3">
-                                        <label className="mb-1 block text-xs font-medium text-rose-700">
-                                          Reject reason
-                                        </label>
-                                        <textarea
-                                          value={rejectDrafts[ticket.id] || ''}
-                                          onChange={(e) => updateRejectDraft(ticket.id, e.target.value)}
-                                          rows={3}
-                                          className="mb-2 w-full rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
-                                          placeholder="Why is this ticket being rejected?"
-                                          disabled={rejectSavingTicketId === ticket.id}
-                                        />
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => handleRejectTicket(ticket)}
-                                            disabled={rejectSavingTicketId === ticket.id}
-                                            className="rounded-md bg-rose-700 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-rose-800 disabled:opacity-50"
-                                          >
-                                            {rejectSavingTicketId === ticket.id ? 'Submitting...' : 'Submit reject'}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {attachmentFiles.length > 0 && (
-                                      <div className="mt-4">
-                                        <div className="mb-2 flex items-center justify-between gap-3">
-                                          <p className="m-0 text-sm font-semibold text-slate-900">Evidence images</p>
-                                          <span className="text-xs text-slate-500">
-                                            {attachmentFiles.length}{' '}
-                                            {attachmentFiles.length === 1 ? 'image' : 'images'}
-                                          </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                                          {attachmentFiles.map((filename, attachmentIndex) => {
-                                            const src = buildAttachmentUrl(ticket.id, filename)
-                                            return (
-                                              <a
-                                                key={`${ticket.id}-${filename}-${attachmentIndex}`}
-                                                href={src}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="group relative aspect-square overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:shadow-md"
-                                                title={filename}
-                                              >
-                                                <img
-                                                  src={src}
-                                                  alt={`Attachment ${attachmentIndex + 1}`}
-                                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
-                                                  loading="lazy"
-                                                />
-                                              </a>
-                                            )
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
+                                  <div className="mt-3">
+                                    <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} />
                                   </div>
 
-                                  <div className="rounded-md border border-slate-200 bg-white p-3">
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                      <p className="m-0 text-sm font-semibold text-slate-900">Comments</p>
-                                      <span className="text-xs text-slate-500">
-                                        {visibleComments.length}{' '}
-                                        {visibleComments.length === 1 ? 'comment' : 'comments'}
-                                      </span>
+                                  {rowAction === 'status' && (
+                                    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                      <label className="mb-1 block text-xs font-medium text-slate-600">
+                                        Change status
+                                      </label>
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <select
+                                          value={getStatusDraft(ticket)}
+                                          onChange={(e) => updateStatusDraft(ticket.id, e.target.value)}
+                                          disabled={statusSavingTicketId === ticket.id}
+                                          className="min-w-[12rem] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                        >
+                                          {STATUS_OPTIONS.map((status) => (
+                                            <option key={status} value={status}>
+                                              {formatEnum(status)}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveStatus(ticket)}
+                                          disabled={statusSavingTicketId === ticket.id}
+                                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                                        >
+                                          {statusSavingTicketId === ticket.id ? 'Saving...' : 'Save status'}
+                                        </button>
+                                      </div>
                                     </div>
+                                  )}
 
-                                    {visibleComments.length === 0 ? (
-                                      <p className="mb-3 text-sm text-slate-500">No comments yet.</p>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        {visibleComments.map((comment) => {
-                                          const owner = isCommentOwner(comment, user)
-                                          const isEditing = editCommentId === comment.id
-                                          const editDraft = editDrafts[comment.id] ?? comment.body ?? ''
-                                          const isBusy = commentActionId === comment.id
+                                  {rowAction === 'reject' && (
+                                    <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                                      <label className="mb-1 block text-xs font-medium text-rose-700">
+                                        Reject reason
+                                      </label>
+                                      <textarea
+                                        value={rejectDrafts[ticket.id] || ''}
+                                        onChange={(e) => updateRejectDraft(ticket.id, e.target.value)}
+                                        rows={3}
+                                        className="mb-2 w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                                        placeholder="Why is this ticket being rejected?"
+                                        disabled={rejectSavingTicketId === ticket.id}
+                                      />
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRejectTicket(ticket)}
+                                          disabled={rejectSavingTicketId === ticket.id}
+                                          className="rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-rose-800 disabled:opacity-50"
+                                        >
+                                          {rejectSavingTicketId === ticket.id ? 'Submitting...' : 'Submit reject'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
 
+                                  {attachmentFiles.length > 0 && (
+                                    <div className="mt-4">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="m-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                          <ImageIcon className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+                                          Evidence images
+                                        </p>
+                                        <span className="text-xs text-slate-500">
+                                          {attachmentFiles.length} {attachmentFiles.length === 1 ? 'image' : 'images'}
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                                        {attachmentFiles.map((filename, attachmentIndex) => {
+                                          const src = buildAttachmentUrl(ticket.id, filename)
                                           return (
-                                            <div
-                                              key={comment.id}
-                                              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm"
+                                            <a
+                                              key={`${ticket.id}-${filename}-${attachmentIndex}`}
+                                              href={src}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:shadow-md"
+                                              title={filename}
                                             >
-                                              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                                <div className="min-w-0">
-                                                  <span className="text-sm font-medium text-slate-800">
-                                                    {comment.author || 'Unknown user'}
-                                                  </span>
-                                                  {owner && (
-                                                    <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700">
-                                                      You
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                <time
-                                                  className="text-xs text-slate-500"
-                                                  dateTime={comment.updatedAt || comment.createdAt}
-                                                >
-                                                  {formatDate(comment.updatedAt || comment.createdAt)}
-                                                </time>
-                                              </div>
+                                              <img
+                                                src={src}
+                                                alt={`Attachment ${attachmentIndex + 1}`}
+                                                className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                                loading="lazy"
+                                              />
+                                            </a>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
 
-                                              {isEditing ? (
-                                                <>
-                                                  <textarea
-                                                    value={editDraft}
-                                                    onChange={(e) => updateEditDraft(comment.id, e.target.value)}
-                                                    rows={3}
-                                                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                                  />
+                                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                  <div className="mb-3 flex items-center justify-between gap-3">
+                                    <p className="m-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                      <MessageSquareText className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+                                      Comments
+                                    </p>
+                                    <span className="text-xs text-slate-500">
+                                      {visibleComments.length} {visibleComments.length === 1 ? 'comment' : 'comments'}
+                                    </span>
+                                  </div>
+
+                                  {visibleComments.length === 0 ? (
+                                    <p className="mb-3 text-sm text-slate-500">No comments yet.</p>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {visibleComments.map((comment) => {
+                                        const owner = isCommentOwner(comment, user)
+                                        const isEditing = editCommentId === comment.id
+                                        const editDraft = editDrafts[comment.id] ?? comment.body ?? ''
+                                        const isBusy = commentActionId === comment.id
+
+                                        return (
+                                          <div
+                                            key={comment.id}
+                                            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm"
+                                          >
+                                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                              <div className="min-w-0">
+                                                <span className="text-sm font-medium text-slate-800">
+                                                  {comment.author || 'Unknown user'}
+                                                </span>
+                                                {owner && (
+                                                  <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700">
+                                                    You
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <time
+                                                className="text-xs text-slate-500"
+                                                dateTime={comment.updatedAt || comment.createdAt}
+                                              >
+                                                {formatDate(comment.updatedAt || comment.createdAt)}
+                                              </time>
+                                            </div>
+
+                                            {isEditing ? (
+                                              <>
+                                                <textarea
+                                                  value={editDraft}
+                                                  onChange={(e) => updateEditDraft(comment.id, e.target.value)}
+                                                  rows={3}
+                                                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                                />
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                  <button
+                                                    type="button"
+                                                    disabled={isBusy || !editDraft.trim()}
+                                                    onClick={() => handleSaveCommentEdit(ticket.id, comment.id)}
+                                                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                                                  >
+                                                    {isBusy ? 'Saving...' : 'Save'}
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    disabled={isBusy}
+                                                    onClick={cancelEditingComment}
+                                                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
+                                                  >
+                                                    Cancel
+                                                  </button>
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <p className="m-0 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                                                  {comment.body}
+                                                </p>
+                                                {owner && (
                                                   <div className="mt-2 flex flex-wrap gap-2">
                                                     <button
                                                       type="button"
-                                                      disabled={isBusy || !editDraft.trim()}
-                                                      onClick={() => handleSaveCommentEdit(ticket.id, comment.id)}
-                                                      className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                                                      disabled={isBusy}
+                                                      onClick={() => startEditingComment(comment)}
+                                                      className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
                                                     >
-                                                      {isBusy ? 'Saving...' : 'Save'}
+                                                      <Pencil className="h-3.5 w-3.5" strokeWidth={2.2} />
+                                                      Edit
                                                     </button>
                                                     <button
                                                       type="button"
                                                       disabled={isBusy}
-                                                      onClick={cancelEditingComment}
-                                                      className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
+                                                      onClick={() => handleDeleteComment(ticket.id, comment.id)}
+                                                      className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 disabled:opacity-50"
                                                     >
-                                                      Cancel
+                                                      <Trash2 className="h-3.5 w-3.5" strokeWidth={2.2} />
+                                                      Delete
                                                     </button>
                                                   </div>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  <p className="m-0 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                                                    {comment.body}
-                                                  </p>
-                                                  {owner && (
-                                                    <div className="mt-2 flex flex-wrap gap-2">
-                                                      <button
-                                                        type="button"
-                                                        disabled={isBusy}
-                                                        onClick={() => startEditingComment(comment)}
-                                                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
-                                                      >
-                                                        Edit
-                                                      </button>
-                                                      <button
-                                                        type="button"
-                                                        disabled={isBusy}
-                                                        onClick={() => handleDeleteComment(ticket.id, comment.id)}
-                                                        className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 disabled:opacity-50"
-                                                      >
-                                                        Delete
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                </>
-                                              )}
-                                            </div>
-                                          )
-                                        })}
-                                      </div>
-                                    )}
+                                                )}
+                                              </>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
 
-                                    <div className="mt-3">
-                                      <textarea
-                                        value={commentDraft}
-                                        onChange={(e) => updateCommentDraft(ticket.id, e.target.value)}
-                                        rows={3}
-                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                        placeholder="Add a comment to this ticket..."
-                                      />
-                                      <div className="mt-2 flex justify-end">
-                                        <button
-                                          type="button"
-                                          disabled={isCommentSaving || !commentDraft.trim()}
-                                          onClick={() => handleAddComment(ticket.id)}
-                                          className="rounded-md bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-md disabled:opacity-50"
-                                        >
-                                          {isCommentSaving ? 'Adding...' : 'Add comment'}
-                                        </button>
-                                      </div>
+                                  <div className="mt-3">
+                                    <textarea
+                                      value={commentDraft}
+                                      onChange={(e) => updateCommentDraft(ticket.id, e.target.value)}
+                                      rows={3}
+                                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                      placeholder="Add a comment to this ticket..."
+                                    />
+                                    <div className="mt-2 flex justify-end">
+                                      <button
+                                        type="button"
+                                        disabled={isCommentSaving || !commentDraft.trim()}
+                                        onClick={() => handleAddComment(ticket.id)}
+                                        className="inline-flex items-center gap-1.5 rounded-md bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-500 hover:shadow-md disabled:opacity-50"
+                                      >
+                                        <MessageSquareText className="h-3.5 w-3.5" strokeWidth={2.2} />
+                                        {isCommentSaving ? 'Adding...' : 'Add comment'}
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
-                              </td>
-                            </tr>
+                              </div>
+                            </div>
                           )}
-                        </Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
             )}
           </div>
         </div>

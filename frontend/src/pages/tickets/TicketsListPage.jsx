@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Eye, FileText, ImageIcon, MessageSquareText, Pencil, PlusCircle, Ticket, Trash2 } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
-import TicketSlaBadges from '../../components/TicketSlaBadges'
 import { useAuth } from '../../context/AuthContext'
 import { useResources } from '../../hooks/useResources'
 import { useActionToasts } from '../../hooks/useActionToasts'
@@ -9,13 +9,8 @@ import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOpti
 import { API_BASE_URL, apiGet, apiPostFormData, apiSend } from '../../services/apiClient'
 
 const TICKET_FILTERS = [
-  { id: 'CREATE', label: 'Create new ticket' },
-  { id: 'ALL', label: 'All Tickets' },
-  { id: 'OPEN', label: 'Open' },
-  { id: 'PENDING', label: 'Pending' },
-  { id: 'RESOLVED', label: 'Resolved' },
-  { id: 'CLOSED', label: 'Closed' },
-  { id: 'REJECTED', label: 'Rejected' },
+  { id: 'CREATE', label: 'Create new ticket', icon: PlusCircle },
+  { id: 'ALL', label: 'All Tickets', icon: FileText },
 ]
 
 const MAX_ATTACHMENTS = 3
@@ -473,14 +468,15 @@ export default function TicketsListPage() {
       <ActionToasts toasts={toasts} onDismiss={dismissToast} />
       <header className="mb-3 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold text-slate-900">Incident tickets</h1>
+          <div className="h-5" aria-hidden="true" />
         </div>
       </header>
 
-      <div className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+      <div className="mb-3 grid max-w-3xl gap-3 sm:mx-auto sm:grid-cols-2">
         {TICKET_FILTERS.map((filter) => {
           const isActive = activeFilter === filter.id
           const count = filter.id === 'CREATE' ? null : filterCount(tickets, filter.id)
+          const Icon = filter.icon
 
           return (
             <button
@@ -493,13 +489,26 @@ export default function TicketsListPage() {
                   : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
-              <p
-                className={`text-xs font-medium uppercase tracking-[0.16em] ${
-                  isActive ? 'text-slate-200' : 'text-slate-500'
-                }`}
-              >
-                {filter.label}
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p
+                    className={`text-xs font-medium uppercase tracking-[0.16em] ${
+                      isActive ? 'text-slate-200' : 'text-slate-500'
+                    }`}
+                  >
+                    {filter.label}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                    isActive
+                      ? 'border-white/20 bg-white/10 text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={2.2} />
+                </span>
+              </div>
               <p className="mt-2 text-3xl font-semibold">
                 {filter.id === 'CREATE' ? '+' : count}
               </p>
@@ -509,7 +518,7 @@ export default function TicketsListPage() {
       </div>
 
       {showCreateForm ? (
-        <div className="mb-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:px-5 lg:mx-auto lg:w-[70%]">
+        <div className="mb-4 w-full rounded-2xl border-2 border-slate-950 bg-white px-4 py-2.5 shadow-[0_16px_32px_rgba(2,6,23,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_rgba(2,6,23,0.14)] sm:px-5 lg:mx-auto lg:w-[70%]">
           <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -729,6 +738,10 @@ export default function TicketsListPage() {
         </div>
       ) : (
         <>
+          <div className="mb-3 w-full text-left lg:mx-auto lg:w-[60%]">
+            <h2 className="text-lg font-semibold text-slate-900">Your Tickets</h2>
+          </div>
+
           {loading && (
             <div className="rounded-lg border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm text-gray-500">
               <p>Loading tickets…</p>
@@ -784,55 +797,56 @@ export default function TicketsListPage() {
                 className="ticket-enter mx-auto w-full rounded-md border border-gray-200 bg-white px-4 py-3 shadow-sm transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-slate-900 hover:bg-slate-950/5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.18)] lg:w-[60%]"
                 style={{ animationDelay: `${index * 90}ms` }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <span
-                      className="block break-all font-mono text-base font-medium text-slate-700"
-                      title={ticket.id}
-                    >
-                      {displayTicketNumber(ticket)}
+                <div className="flex items-center gap-4">
+                  <div className="flex shrink-0 items-center justify-center py-2">
+                    <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm">
+                      <Ticket className="h-8 w-8" strokeWidth={2.2} />
                     </span>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{displaySubject(ticket)}</p>
-                    <div className="mt-2 flex justify-start">
-                      <button
-                        type="button"
-                        onClick={() => toggleExpandedTicket(ticket.id)}
-                        className="rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
-                      >
-                        {isExpanded ? 'Hide details' : 'View all'}
-                      </button>
-                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <div className="max-w-full">
-                      <TicketWorkflowBar
-                        status={ticket.status}
-                        rejectReason={ticket.rejectReason}
-                        compact
-                      />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className="block break-all font-mono text-base font-medium text-slate-700"
+                          title={ticket.id}
+                        >
+                          {displayTicketNumber(ticket)}
+                        </span>
+                        <p className="mt-2 text-lg font-semibold text-slate-900">{displaySubject(ticket)}</p>
+                        <div className="mt-2 flex justify-start">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpandedTicket(ticket.id)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:border-slate-900 hover:bg-slate-950 hover:text-white hover:shadow-sm"
+                          >
+                            <Eye className="h-3.5 w-3.5" strokeWidth={2.2} />
+                            {isExpanded ? 'Hide details' : 'View all'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <div className="max-w-full">
+                          <TicketWorkflowBar
+                            status={ticket.status}
+                            rejectReason={ticket.rejectReason}
+                            compact
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold uppercase text-slate-700">
+                            {formatCategory(ticket.status)}
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}
+                          >
+                            {ticket.priority || '—'}
+                          </span>
+                        </div>
+                        <p className="text-right text-sm text-gray-600">
+                          <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold uppercase text-slate-700">
-                        {formatCategory(ticket.status)}
-                      </span>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}
-                      >
-                        {ticket.priority || '—'}
-                      </span>
-                    </div>
-                    <p className="text-right text-sm text-gray-600">
-                      <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
-                    </p>
-                    <TicketSlaBadges
-                      priority={ticket.priority}
-                      createdAt={ticket.createdAt}
-                      firstResponseAt={ticket.firstResponseAt}
-                      resolvedAt={ticket.resolvedAt}
-                      status={ticket.status}
-                      now={clockTick}
-                      className="justify-end"
-                    />
                   </div>
                 </div>
 
@@ -845,10 +859,19 @@ export default function TicketsListPage() {
                     </p>
                     <p className="mt-2 text-base leading-7 text-gray-800">{excerpt(ticket.description, 100)}</p>
 
+                    {ticket.status === 'REJECTED' && (
+                      <div className="mt-3 max-w-xs">
+                        <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} />
+                      </div>
+                    )}
+
                     {attachmentFiles.length > 0 && (
                       <div className="mt-3">
                         <div className="mb-2 flex items-center justify-between gap-3">
-                          <p className="m-0 text-sm font-semibold text-slate-900">Evidence images</p>
+                          <p className="m-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                            <ImageIcon className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+                            Evidence images
+                          </p>
                           <span className="text-xs text-slate-500">
                             {attachmentFiles.length} {attachmentFiles.length === 1 ? 'image' : 'images'}
                           </span>
@@ -880,7 +903,10 @@ export default function TicketsListPage() {
 
                     <div className="mt-3">
                       <div className="mb-2 flex items-center justify-between gap-3">
-                        <p className="m-0 text-sm font-semibold text-slate-900">Comments</p>
+                        <p className="m-0 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                          <MessageSquareText className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+                          Comments
+                        </p>
                         <span className="text-xs text-slate-500">
                           {visibleComments.length} {visibleComments.length === 1 ? 'comment' : 'comments'}
                         </span>
@@ -958,16 +984,18 @@ export default function TicketsListPage() {
                                           type="button"
                                           disabled={isBusy}
                                           onClick={() => startEditingComment(comment)}
-                                          className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
+                                          className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:opacity-50"
                                         >
+                                          <Pencil className="h-3.5 w-3.5" strokeWidth={2.2} />
                                           Edit
                                         </button>
                                         <button
                                           type="button"
                                           disabled={isBusy}
                                           onClick={() => handleDeleteComment(ticket.id, comment.id)}
-                                          className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:-translate-y-0.5 hover:bg-red-50 disabled:opacity-50"
+                                          className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:-translate-y-0.5 hover:bg-red-50 disabled:opacity-50"
                                         >
+                                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2.2} />
                                           Delete
                                         </button>
                                       </div>
@@ -993,8 +1021,9 @@ export default function TicketsListPage() {
                             type="button"
                             disabled={isCommentSaving || !commentDraft.trim()}
                             onClick={() => handleAddComment(ticket.id)}
-                            className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
                           >
+                            <MessageSquareText className="h-3.5 w-3.5" strokeWidth={2.2} />
                             {isCommentSaving ? 'Adding...' : 'Add comment'}
                           </button>
                         </div>
