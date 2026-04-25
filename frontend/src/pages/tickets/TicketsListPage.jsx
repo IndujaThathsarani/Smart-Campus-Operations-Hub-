@@ -13,6 +13,13 @@ const TICKET_FILTERS = [
   { id: 'REJECTED', label: 'Rejected' },
 ]
 
+const SLA_TARGETS_MINUTES = {
+  URGENT: { firstResponse: 30, resolution: 4 * 60 },
+  HIGH: { firstResponse: 2 * 60, resolution: 24 * 60 },
+  MEDIUM: { firstResponse: 4 * 60, resolution: 48 * 60 },
+  LOW: { firstResponse: 8 * 60, resolution: 72 * 60 },
+}
+
 function formatCategory(c) {
   if (!c) return '—'
   return String(c).replaceAll('_', ' ')
@@ -60,6 +67,63 @@ function displaySubject(ticket) {
   const value = ticket?.subject
   if (!value || !String(value).trim()) return 'Untitled incident'
   return String(value).trim()
+}
+
+function formatDurationMinutes(totalMinutes) {
+  const mins = Math.max(0, Math.round(totalMinutes))
+  const days = Math.floor(mins / 1440)
+  const hours = Math.floor((mins % 1440) / 60)
+  const minutes = mins % 60
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
+}
+
+function slaToneClasses(tone) {
+  switch (tone) {
+    case 'good':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    case 'warn':
+      return 'bg-amber-50 text-amber-700 border-amber-200'
+    case 'bad':
+      return 'bg-rose-50 text-rose-700 border-rose-200'
+    default:
+      return 'bg-slate-50 text-slate-600 border-slate-200'
+  }
+}
+
+function buildSlaState({ createdAt, endedAt, targetMinutes }) {
+  if (!createdAt || !targetMinutes) {
+    return { text: 'N/A', tone: 'neutral' }
+  }
+  const startMs = new Date(createdAt).getTime()
+  if (Number.isNaN(startMs)) {
+    return { text: 'N/A', tone: 'neutral' }
+  }
+
+  const nowMs = Date.now()
+  const endMs = endedAt ? new Date(endedAt).getTime() : nowMs
+  if (Number.isNaN(endMs)) {
+    return { text: 'N/A', tone: 'neutral' }
+  }
+
+  const elapsedMinutes = (endMs - startMs) / 60000
+  if (endedAt) {
+    const onTime = elapsedMinutes <= targetMinutes
+    return {
+      text: onTime ? `On time (${formatDurationMinutes(elapsedMinutes)})` : `Breached (${formatDurationMinutes(elapsedMinutes)})`,
+      tone: onTime ? 'good' : 'bad',
+    }
+  }
+
+  const remaining = targetMinutes - elapsedMinutes
+  if (remaining < 0) {
+    return { text: `Overdue by ${formatDurationMinutes(Math.abs(remaining))}`, tone: 'bad' }
+  }
+  if (remaining <= targetMinutes * 0.25) {
+    return { text: `Due in ${formatDurationMinutes(remaining)}`, tone: 'warn' }
+  }
+  return { text: `Due in ${formatDurationMinutes(remaining)}`, tone: 'good' }
 }
 
 function isCommentOwner(comment, user) {
@@ -300,6 +364,17 @@ export default function TicketsListPage() {
             const commentDraft = commentDrafts[ticket.id] || ''
             const isCommentSaving = commentSavingTicketId === ticket.id
             const isExpanded = Boolean(expandedTickets[ticket.id])
+            const targets = SLA_TARGETS_MINUTES[ticket.priority] || SLA_TARGETS_MINUTES.MEDIUM
+            const firstResponseSla = buildSlaState({
+              createdAt: ticket.createdAt,
+              endedAt: ticket.firstResponseAt,
+              targetMinutes: targets.firstResponse,
+            })
+            const resolutionSla = buildSlaState({
+              createdAt: ticket.createdAt,
+              endedAt: ticket.resolvedAt,
+              targetMinutes: targets.resolution,
+            })
 
             return (
               <li
@@ -318,6 +393,20 @@ export default function TicketsListPage() {
                     <p className="mt-1 text-sm text-gray-600">
                       <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-md border px-2 py-1 text-[11px] font-medium ${slaToneClasses(firstResponseSla.tone)}`}
+                        title="Time-to-first-response SLA"
+                      >
+                        First response: {firstResponseSla.text}
+                      </span>
+                      <span
+                        className={`rounded-md border px-2 py-1 text-[11px] font-medium ${slaToneClasses(resolutionSla.tone)}`}
+                        title="Time-to-resolution SLA"
+                      >
+                        Resolution: {resolutionSla.text}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap justify-end gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">

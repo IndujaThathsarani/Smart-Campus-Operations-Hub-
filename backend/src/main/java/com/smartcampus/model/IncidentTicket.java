@@ -67,6 +67,8 @@ public class IncidentTicket {
     private String assignedTo;
 
     private Instant createdAt;
+    private Instant firstResponseAt;
+    private Instant resolvedAt;
 
     /** Stored filenames under upload dir (not full paths in JSON). */
     private List<String> attachmentFileNames = new ArrayList<>();
@@ -183,6 +185,22 @@ public class IncidentTicket {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getFirstResponseAt() {
+        return firstResponseAt;
+    }
+
+    public void setFirstResponseAt(Instant firstResponseAt) {
+        this.firstResponseAt = firstResponseAt;
+    }
+
+    public Instant getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(Instant resolvedAt) {
+        this.resolvedAt = resolvedAt;
     }
 
     public List<String> getAttachmentFileNames() {

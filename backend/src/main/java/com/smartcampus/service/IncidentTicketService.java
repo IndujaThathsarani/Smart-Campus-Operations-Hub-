@@ -242,6 +242,15 @@ public class IncidentTicketService {
         }
 
         ticket.setStatus(status);
+        Instant now = Instant.now();
+        if (ticket.getFirstResponseAt() == null && status != IncidentTicket.Status.OPEN) {
+            ticket.setFirstResponseAt(now);
+        }
+        if (status == IncidentTicket.Status.RESOLVED || status == IncidentTicket.Status.CLOSED) {
+            if (ticket.getResolvedAt() == null) {
+                ticket.setResolvedAt(now);
+            }
+        }
         return incidentTicketRepository.save(ticket);
     }
 
