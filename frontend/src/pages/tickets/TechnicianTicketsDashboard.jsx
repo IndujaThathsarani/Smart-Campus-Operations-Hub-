@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import ActionToasts from '../../components/ActionToasts'
 import { useAuth } from '../../context/AuthContext'
+import { useActionToasts } from '../../hooks/useActionToasts'
 import { API_BASE_URL, apiGet, apiSend } from '../../services/apiClient'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
 import TicketSlaBadges from '../../components/TicketSlaBadges'
@@ -117,6 +119,7 @@ function isCommentOwner(comment, user) {
 
 export default function TechnicianTicketsDashboard() {
   const { user } = useAuth()
+  const { toasts, pushToast, dismissToast } = useActionToasts()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -242,14 +245,15 @@ export default function TechnicianTicketsDashboard() {
       const status = String(getStatusDraft(ticket) || 'OPEN').trim()
       if (!status) return
       if (status === 'REJECTED') {
-        setStatusActionSuccess(null)
-        setStatusActionError('Use the reject button for rejected tickets.')
+        pushToast({
+          title: 'Use reject',
+          message: 'Use the reject button for rejected tickets.',
+          variant: 'warning',
+        })
         return
       }
 
       setStatusSavingTicketId(ticket.id)
-      setStatusActionError(null)
-      setStatusActionSuccess(null)
       try {
         await apiSend(`/api/tickets/${ticket.id}/status`, {
           method: 'PATCH',
@@ -258,30 +262,39 @@ export default function TechnicianTicketsDashboard() {
             rejectReason: null,
           },
         })
-        setStatusActionSuccess(`Status updated for ${ticketLabel(ticket)}.`)
+        pushToast({
+          title: 'Saved',
+          message: `Status updated for ${ticketLabel(ticket)}.`,
+          variant: 'success',
+        })
         await loadTickets()
         clearRowAction(ticket.id)
       } catch (err) {
-        setStatusActionError(err?.body?.message || err?.message || 'Could not update ticket status.')
+        pushToast({
+          title: 'Could not update status',
+          message: err?.body?.message || err?.message || 'Could not update ticket status.',
+          variant: 'error',
+        })
       } finally {
         setStatusSavingTicketId(null)
       }
     },
-    [clearRowAction, getStatusDraft, loadTickets],
+    [clearRowAction, getStatusDraft, loadTickets, pushToast],
   )
 
   const handleRejectTicket = useCallback(
     async (ticket) => {
       const reason = String(rejectDrafts[ticket.id] || '').trim()
       if (!reason) {
-        setRejectActionSuccess(null)
-        setRejectActionError('Please provide a reject reason first.')
+        pushToast({
+          title: 'Reason needed',
+          message: 'Please provide a reject reason first.',
+          variant: 'warning',
+        })
         return
       }
 
       setRejectSavingTicketId(ticket.id)
-      setRejectActionError(null)
-      setRejectActionSuccess(null)
       try {
         await apiSend(`/api/tickets/${ticket.id}/status`, {
           method: 'PATCH',
@@ -290,17 +303,25 @@ export default function TechnicianTicketsDashboard() {
             rejectReason: reason,
           },
         })
-        setRejectActionSuccess(`Ticket ${ticketLabel(ticket)} rejected.`)
+        pushToast({
+          title: 'Rejected',
+          message: `Ticket ${ticketLabel(ticket)} rejected.`,
+          variant: 'success',
+        })
         setRejectDrafts((prev) => ({ ...prev, [ticket.id]: '' }))
         await loadTickets()
         clearRowAction(ticket.id)
       } catch (err) {
-        setRejectActionError(err?.body?.message || err?.message || 'Could not reject ticket.')
+        pushToast({
+          title: 'Could not reject ticket',
+          message: err?.body?.message || err?.message || 'Could not reject ticket.',
+          variant: 'error',
+        })
       } finally {
         setRejectSavingTicketId(null)
       }
     },
-    [clearRowAction, loadTickets, rejectDrafts],
+    [clearRowAction, loadTickets, pushToast, rejectDrafts],
   )
 
   const updateCommentDraft = useCallback((ticketId, value) => {
@@ -326,7 +347,6 @@ export default function TechnicianTicketsDashboard() {
       if (!body) return
 
       setCommentSavingTicketId(ticketId)
-      setError(null)
       try {
         await apiSend(`/api/tickets/${ticketId}/comments`, {
           method: 'POST',
@@ -334,13 +354,22 @@ export default function TechnicianTicketsDashboard() {
         })
         setCommentDrafts((prev) => ({ ...prev, [ticketId]: '' }))
         await loadTickets()
+        pushToast({
+          title: 'Comment added',
+          message: 'Your comment was posted successfully.',
+          variant: 'success',
+        })
       } catch (err) {
-        setError(err?.body?.message || err?.message || 'Could not add comment.')
+        pushToast({
+          title: 'Could not add comment',
+          message: err?.body?.message || err?.message || 'Could not add comment.',
+          variant: 'error',
+        })
       } finally {
         setCommentSavingTicketId(null)
       }
     },
-    [commentDrafts, loadTickets],
+    [commentDrafts, loadTickets, pushToast],
   )
 
   const handleSaveCommentEdit = useCallback(
@@ -349,7 +378,6 @@ export default function TechnicianTicketsDashboard() {
       if (!body) return
 
       setCommentActionId(commentId)
-      setError(null)
       try {
         await apiSend(`/api/tickets/${ticketId}/comments/${commentId}/body`, {
           method: 'PATCH',
@@ -357,13 +385,22 @@ export default function TechnicianTicketsDashboard() {
         })
         setEditCommentId(null)
         await loadTickets()
+        pushToast({
+          title: 'Comment saved',
+          message: 'Your comment changes were saved.',
+          variant: 'success',
+        })
       } catch (err) {
-        setError(err?.body?.message || err?.message || 'Could not update comment.')
+        pushToast({
+          title: 'Could not save comment',
+          message: err?.body?.message || err?.message || 'Could not update comment.',
+          variant: 'error',
+        })
       } finally {
         setCommentActionId(null)
       }
     },
-    [editDrafts, loadTickets],
+    [editDrafts, loadTickets, pushToast],
   )
 
   const handleDeleteComment = useCallback(
@@ -372,7 +409,6 @@ export default function TechnicianTicketsDashboard() {
       if (!ok) return
 
       setCommentActionId(commentId)
-      setError(null)
       try {
         await apiSend(`/api/tickets/${ticketId}/comments/${commentId}`, {
           method: 'DELETE',
@@ -381,17 +417,27 @@ export default function TechnicianTicketsDashboard() {
           setEditCommentId(null)
         }
         await loadTickets()
+        pushToast({
+          title: 'Comment deleted',
+          message: 'The comment was removed successfully.',
+          variant: 'success',
+        })
       } catch (err) {
-        setError(err?.body?.message || err?.message || 'Could not delete comment.')
+        pushToast({
+          title: 'Could not delete comment',
+          message: err?.body?.message || err?.message || 'Could not delete comment.',
+          variant: 'error',
+        })
       } finally {
         setCommentActionId(null)
       }
     },
-    [editCommentId, loadTickets],
+    [editCommentId, loadTickets, pushToast],
   )
 
   return (
     <section className="relative w-full max-w-none">
+      <ActionToasts toasts={toasts} onDismiss={dismissToast} />
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 flex-1 sm:pr-4">
           <p className="mb-2 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
@@ -463,27 +509,6 @@ export default function TechnicianTicketsDashboard() {
                 {filteredTickets.length} items
               </span>
             </div>
-
-            {statusActionError && (
-              <p className="mt-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
-                {statusActionError}
-              </p>
-            )}
-            {statusActionSuccess && (
-              <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-                {statusActionSuccess}
-              </p>
-            )}
-            {rejectActionError && (
-              <p className="mt-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
-                {rejectActionError}
-              </p>
-            )}
-            {rejectActionSuccess && (
-              <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-                {rejectActionSuccess}
-              </p>
-            )}
 
             {loading && (
               <div className="mt-6 rounded-md border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
