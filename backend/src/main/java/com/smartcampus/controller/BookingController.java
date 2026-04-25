@@ -3,10 +3,14 @@ package com.smartcampus.controller;
 import com.smartcampus.booking.BookingStatus;
 import com.smartcampus.dto.BookingDTO;
 import com.smartcampus.model.Booking;
+import com.smartcampus.model.User;
+import com.smartcampus.repository.UserRepository;
 import com.smartcampus.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -23,13 +27,56 @@ public class BookingController {
     
     @Autowired
     private BookingService bookingService;
+
+    @Autowired
+    private UserRepository userRepository;
     
-    private String getCurrentUserId() {
-        return "temp-user-123";
+    private String getCurrentUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "anonymous";
+        }
+        
+        String email = null;
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof OAuth2User oAuth2User) {
+            email = oAuth2User.getAttribute("email");
+        }
+
+        if (email == null || email.isBlank()) {
+            email = authentication.getName();
+        }
+
+        if (email == null || email.isBlank()) {
+            return "anonymous";
+        }
+        
+        User user = userRepository.findByEmail(email).orElse(null);
+        return user != null ? user.getId() : "anonymous";
     }
     
-    private String getCurrentUserName() {
-        return "Temp User";
+    private String getCurrentUserName(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "Unknown User";
+        }
+        
+        String email = null;
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof OAuth2User oAuth2User) {
+            email = oAuth2User.getAttribute("email");
+        }
+
+        if (email == null || email.isBlank()) {
+            email = authentication.getName();
+        }
+
+        if (email == null || email.isBlank()) {
+            return "Unknown User";
+        }
+        
+        User user = userRepository.findByEmail(email).orElse(null);
+        return user != null ? user.getName() : email;
     }
 
     @GetMapping("/hello")
@@ -55,8 +102,8 @@ public class BookingController {
     
     // GET user's own bookings
     @GetMapping("/me")
-    public ResponseEntity<List<Booking>> getMyBookings() {
-        String userId = getCurrentUserId();
+    public ResponseEntity<List<Booking>> getMyBookings(Authentication authentication) {
+        String userId = getCurrentUserId(authentication);
         List<Booking> bookings = bookingService.getUserBookings(userId);
         return ResponseEntity.ok(bookings);
     }
@@ -70,10 +117,10 @@ public class BookingController {
     
     // POST create booking
     @PostMapping
-    public ResponseEntity<?> createBooking(@RequestBody BookingDTO bookingDTO) {
+    public ResponseEntity<?> createBooking(@RequestBody BookingDTO bookingDTO, Authentication authentication) {
         try {
-            String userId = getCurrentUserId();
-            String userName = getCurrentUserName();
+            String userId = getCurrentUserId(authentication);
+            String userName = getCurrentUserName(authentication);
             Booking booking = bookingService.createBooking(bookingDTO, userId, userName);
             
             Map<String, Object> response = new HashMap<>();

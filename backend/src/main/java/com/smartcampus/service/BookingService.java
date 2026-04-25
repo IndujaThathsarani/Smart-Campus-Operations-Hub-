@@ -3,12 +3,18 @@ package com.smartcampus.service;
 import com.smartcampus.booking.BookingStatus;
 import com.smartcampus.dto.BookingDTO;
 import com.smartcampus.model.Booking;
+import com.smartcampus.model.Resource;
 import com.smartcampus.repository.BookingRepository;
+import com.smartcampus.repository.ResourceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class BookingService {
@@ -18,14 +24,22 @@ public class BookingService {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private ResourceRepository resourceRepository;
     
     public Booking createBooking(BookingDTO bookingDTO, String userId, String userName) {
         if (bookingDTO.getStartTime().isAfter(bookingDTO.getEndTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
         }
 
+        Resource resource = resolveResource(bookingDTO.getResourceId());
+        // Persist canonical resource ID so bookings consistently map to one resource.
+        bookingDTO.setResourceId(resource.getId());
+
         validateFutureDate(bookingDTO.getStartTime());
         validateDuration(bookingDTO.getStartTime(), bookingDTO.getEndTime());
+        validateAgainstResourceAvailability(resource, bookingDTO.getStartTime(), bookingDTO.getEndTime());
         
         boolean hasConflict = hasConflict(bookingDTO.getResourceId(), bookingDTO.getStartTime(), bookingDTO.getEndTime(), null);
         if (hasConflict && !bookingDTO.isWaitlistRequested()) {
@@ -61,6 +75,68 @@ public class BookingService {
         }
 
         return savedBooking;
+    }
+
+    private Resource resolveResource(String resourceIdentifier) {
+        if (resourceIdentifier == null || resourceIdentifier.trim().isEmpty()) {
+            throw new IllegalArgumentException("Resource ID is required");
+        }
+
+        String trimmed = resourceIdentifier.trim();
+
+        Optional<Resource> byId = resourceRepository.findById(trimmed);
+        if (byId.isPresent()) {
+            return byId.get();
+        }
+
+        return resourceRepository.findByNameIgnoreCase(trimmed)
+            .orElseThrow(() -> new IllegalArgumentException("Resource not found: " + resourceIdentifier));
+    }
+
+    private void validateAgainstResourceAvailability(Resource resource, LocalDateTime startTime, LocalDateTime endTime) {
+        if (resource == null) {
+            throw new IllegalArgumentException("Resource is required");
+        }
+
+        if (!"ACTIVE".equalsIgnoreCase(resource.getStatus())) {
+            throw new IllegalArgumentException("Selected resource is not active");
+        }
+
+        if (resource.getAvailabilityStartDate() == null || resource.getAvailabilityEndDate() == null
+            || resource.getAvailabilityStart() == null || resource.getAvailabilityEnd() == null) {
+            throw new IllegalArgumentException("Resource availability schedule is incomplete");
+        }
+
+        try {
+            LocalDate availableFrom = LocalDate.parse(resource.getAvailabilityStartDate());
+            LocalDate availableTo = LocalDate.parse(resource.getAvailabilityEndDate());
+            LocalTime availableStart = LocalTime.parse(resource.getAvailabilityStart());
+            LocalTime availableEnd = LocalTime.parse(resource.getAvailabilityEnd());
+
+            LocalDate bookingStartDate = startTime.toLocalDate();
+            LocalDate bookingEndDate = endTime.toLocalDate();
+
+            if (bookingStartDate.isBefore(availableFrom) || bookingEndDate.isAfter(availableTo)) {
+                throw new IllegalArgumentException(
+                    "Booking must be within resource date range " + availableFrom + " to " + availableTo
+                );
+            }
+
+            if (!bookingStartDate.equals(bookingEndDate)) {
+                throw new IllegalArgumentException("Booking must start and end on the same date");
+            }
+
+            LocalTime bookingStart = startTime.toLocalTime();
+            LocalTime bookingEnd = endTime.toLocalTime();
+
+            if (bookingStart.isBefore(availableStart) || bookingEnd.isAfter(availableEnd)) {
+                throw new IllegalArgumentException(
+                    "Booking must be within daily availability window " + availableStart + " - " + availableEnd
+                );
+            }
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("Resource availability schedule is invalid");
+        }
     }
     
     public boolean hasConflict(String resourceId, LocalDateTime startTime, LocalDateTime endTime, String excludeBookingId) {

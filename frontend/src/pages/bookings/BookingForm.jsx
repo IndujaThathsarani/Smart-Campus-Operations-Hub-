@@ -32,7 +32,14 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        let finalValue = value;
+        
+        // Convert expectedAttendees to number
+        if (name === 'expectedAttendees' && value !== '') {
+            finalValue = parseInt(value, 10) || 1;
+        }
+        
+        setFormData(prev => ({ ...prev, [name]: finalValue }));
         setConflictError(null);
         setError(null);
     };

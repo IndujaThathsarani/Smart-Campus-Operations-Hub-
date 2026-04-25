@@ -14,7 +14,15 @@ function getStatusMeta(status) {
   return { label: status || 'Unknown', color: '#6b7280' }
 }
 
-// Resource categories for sidebar
+function formatDisplayDate(date) {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 const CATEGORY_META = {
   LECTURE_HALL: { label: 'Lecture Hall', icon: '🏛️' },
   CLASSROOM: { label: 'Lecture Hall', icon: '🏛️' },
@@ -88,15 +96,6 @@ function toDateKey(date) {
   return `${year}-${month}-${day}`
 }
 
-function formatDisplayDate(date) {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 function formatTimeLabel(date) {
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -131,19 +130,33 @@ function createDateTime(date, timeValue) {
   )
 }
 
-function getResourceBookings(bookings, resourceId) {
-  if (!resourceId) return []
+function normalizeIdentifier(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim().toLowerCase()
+}
+
+function getResourceBookings(bookings, resource) {
+  if (!resource) return []
+
+  const validResourceIdentifiers = new Set([
+    normalizeIdentifier(resource.id),
+    normalizeIdentifier(resource.name),
+  ])
+
+  validResourceIdentifiers.delete('')
+  if (validResourceIdentifiers.size === 0) return []
 
   return bookings.filter((booking) => {
-    if (booking.resourceId !== resourceId) return false
+    const bookingResourceIdentifier = normalizeIdentifier(booking.resourceId)
+    if (!validResourceIdentifiers.has(bookingResourceIdentifier)) return false
     return booking.status !== 'REJECTED' && booking.status !== 'CANCELLED'
   })
 }
 
-function getBookingDateMap(bookings, resourceId) {
+function getBookingDateMap(bookings, resource) {
   const bookingDateMap = new Map()
 
-  getResourceBookings(bookings, resourceId).forEach((booking) => {
+  getResourceBookings(bookings, resource).forEach((booking) => {
     const start = new Date(booking.startTime)
     const end = new Date(booking.endTime)
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return
@@ -419,8 +432,8 @@ export default function Catalogue() {
   }, [filteredResources, selectedCalendarResourceId])
 
   const bookingDateMap = useMemo(() => {
-    return getBookingDateMap(bookings, selectedCalendarResourceId)
-  }, [bookings, selectedCalendarResourceId])
+    return getBookingDateMap(bookings, selectedCalendarResource)
+  }, [bookings, selectedCalendarResource])
 
   const bookedDateKeys = useMemo(() => {
     return new Set(bookingDateMap.keys())
@@ -466,8 +479,30 @@ export default function Catalogue() {
     }
 
     const today = new Date()
-    if (isDateWithinResourceRange(selectedCalendarResource, today)) {
-      setSelectedCalendarDateKey(toDateKey(today))
+    const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    const rangeStart = selectedCalendarResource.availabilityStartDate
+      ? new Date(`${selectedCalendarResource.availabilityStartDate}T00:00:00`)
+      : null
+    const rangeEnd = selectedCalendarResource.availabilityEndDate
+      ? new Date(`${selectedCalendarResource.availabilityEndDate}T00:00:00`)
+      : null
+
+    if (
+      rangeStart &&
+      rangeEnd &&
+      !Number.isNaN(rangeStart.getTime()) &&
+      !Number.isNaN(rangeEnd.getTime())
+    ) {
+      const nextValidDate = todayAtMidnight > rangeStart ? todayAtMidnight : rangeStart
+      if (nextValidDate <= rangeEnd) {
+        setSelectedCalendarDateKey(toDateKey(nextValidDate))
+        return
+      }
+    }
+
+    if (isDateWithinResourceRange(selectedCalendarResource, todayAtMidnight)) {
+      setSelectedCalendarDateKey(toDateKey(todayAtMidnight))
       return
     }
 
@@ -476,7 +511,7 @@ export default function Catalogue() {
       return
     }
 
-    setSelectedCalendarDateKey('')
+    setSelectedCalendarDateKey(toDateKey(todayAtMidnight))
   }, [selectedCalendarDateKey, selectedCalendarResource])
 
   const selectedCalendarDate = useMemo(() => {
@@ -860,7 +895,7 @@ export default function Catalogue() {
                       </td>
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                         <button
-                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.name || resource.id)}&location=${encodeURIComponent(resource.location || '')}&returnTo=${encodeURIComponent('/resources')}`)}
+                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.id)}&location=${encodeURIComponent(resource.location || '')}&returnTo=${encodeURIComponent('/resources')}`)}
                           disabled={resource.status !== 'ACTIVE'}
                           style={{
                             padding: '0.3rem 0.75rem',
@@ -1101,20 +1136,21 @@ export default function Catalogue() {
                 </div>
               </div>
 
-              {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate) ? (
-                <div style={{
-                  borderRadius: '10px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  padding: '0.65rem',
-                  fontSize: '0.75rem',
-                  color: '#475569',
-                  lineHeight: 1.45,
-                }}>
-                  This date is outside the resource availability range.
-                </div>
-              ) : (
-                <>
+              <>
+                {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate) ? (
+                  <div style={{
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    padding: '0.65rem',
+                    fontSize: '0.75rem',
+                    color: '#475569',
+                    lineHeight: 1.45,
+                  }}>
+                    This date is outside the resource availability range. Existing bookings are shown below.
+                  </div>
+                ) : null}
+
                   <div style={{
                     borderRadius: '10px',
                     background: '#fff1f2',
@@ -1188,96 +1224,14 @@ export default function Catalogue() {
                       )
                     ) : (
                       <div style={{ fontSize: '0.74rem', color: '#166534' }}>
-                        Daily availability hours are not set for this resource.
+                        {selectedCalendarDate && !isDateWithinResourceRange(selectedCalendarResource, selectedCalendarDate)
+                          ? 'Selected date is outside configured availability, so no free slot can be computed.'
+                          : 'Daily availability hours are not set for this resource.'}
                       </div>
                     )}
                   </div>
 
-                  <div style={{
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    padding: '0.65rem',
-                  }}>
-                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#334155', marginBottom: '0.45rem' }}>
-                      Real-time availability check
-                    </div>
-
-                    {selectedDateBookableSlots.length > 0 ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                        <select
-                          value={selectedSlotKey}
-                          onChange={(e) => {
-                            setSelectedSlotKey(e.target.value)
-                            setBookingFeedback(null)
-                          }}
-                          style={{
-                            minWidth: '132px',
-                            padding: '0.35rem 0.45rem',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '8px',
-                            background: '#fff',
-                            fontSize: '0.76rem',
-                          }}
-                        >
-                          {selectedDateBookableSlots.map((slot) => {
-                            const optionKey = `${slot.start.toISOString()}|${slot.end.toISOString()}`
-                            return (
-                              <option key={optionKey} value={optionKey}>
-                                {formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}
-                              </option>
-                            )
-                          })}
-                        </select>
-
-                        <span style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          color: '#166534',
-                          background: '#dcfce7',
-                          border: '1px solid #bbf7d0',
-                          borderRadius: '999px',
-                          padding: '0.18rem 0.45rem',
-                        }}>
-                          Available
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={handleBookSelectedSlot}
-                          disabled={bookingInProgress || !selectedSlotKey}
-                          style={{
-                            padding: '0.38rem 0.7rem',
-                            borderRadius: '8px',
-                            border: '1px solid #bfdbfe',
-                            background: bookingInProgress ? '#cbd5e1' : '#93c5fd',
-                            color: '#0f172a',
-                            fontWeight: 700,
-                            cursor: bookingInProgress ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {bookingInProgress ? 'Booking...' : 'Book Selected Slot'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                        No bookable one-hour slots left for this date.
-                      </div>
-                    )}
-
-                    {bookingFeedback ? (
-                      <div style={{
-                        marginTop: '0.55rem',
-                        fontSize: '0.74rem',
-                        color: bookingFeedback.type === 'success' ? '#166534' : '#b91c1c',
-                        fontWeight: 600,
-                      }}>
-                        {bookingFeedback.text}
-                      </div>
-                    ) : null}
-                  </div>
-                </>
-              )}
+              </>
             </div>
           </aside>
         </div>
