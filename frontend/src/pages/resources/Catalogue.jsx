@@ -76,6 +76,11 @@ function matchesCategory(resourceType, categoryId) {
   return resourceType === categoryId
 }
 
+function getEquipmentImage(resource) {
+  if (!resource || resource.type !== 'EQUIPMENT') return ''
+  return typeof resource.equipmentImage === 'string' ? resource.equipmentImage : ''
+}
+
 function toDateKey(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -453,6 +458,8 @@ export default function Catalogue() {
     return getAvailableTimeSlots(selectedDateBookedSlots, selectedDateAvailabilityWindow)
   }, [selectedDateBookedSlots, selectedDateAvailabilityWindow])
 
+  const showEquipmentImageColumn = activeCategory === 'EQUIPMENT'
+
   return (
     <div
       style={{
@@ -649,10 +656,19 @@ export default function Catalogue() {
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center' }}>Loading resources...</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table
+                style={{
+                  width: '100%',
+                  minWidth: showEquipmentImageColumn ? '64rem' : '58rem',
+                  borderCollapse: 'collapse',
+                }}
+              >
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>ID</th>
+                    {showEquipmentImageColumn ? (
+                      <th style={{ textAlign: 'left', padding: '0.75rem' }}>Image</th>
+                    ) : null}
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Name</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Location</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Capacity</th>
@@ -666,6 +682,44 @@ export default function Catalogue() {
                   {filteredResources.map((resource, idx) => (
                     <tr key={resource.id} style={{ borderTop: '1px solid #e5e7eb' }}>
                       <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
+                      {showEquipmentImageColumn ? (
+                        <td style={{ padding: '0.75rem' }}>
+                          {getEquipmentImage(resource) ? (
+                            <img
+                              src={getEquipmentImage(resource)}
+                              alt={`${resource.name || 'Equipment'} thumbnail`}
+                              style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '10px',
+                                objectFit: 'cover',
+                                border: '1px solid #dbe4f0',
+                                background: '#f8fafc',
+                                display: 'block',
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '48px',
+                              height: '48px',
+                              borderRadius: '10px',
+                              border: '1px dashed #cbd5e1',
+                              background: '#f8fafc',
+                              color: '#94a3b8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.65rem',
+                              lineHeight: 1,
+                              textAlign: 'center',
+                            }}>
+                              No
+                              <br />
+                              image
+                            </div>
+                          )}
+                        </td>
+                      ) : null}
                       <td style={{ padding: '0.75rem', fontWeight: '500' }}>{resource.name}</td>
                       <td style={{ padding: '0.75rem' }}>{resource.location}</td>
                       <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>

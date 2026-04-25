@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiGet, apiSend } from '../../services/apiClient'
 import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
+const MAX_EQUIPMENT_IMAGE_SIZE_BYTES = 800 * 1024
+
 function getTodayIsoDate() {
   return new Date().toISOString().split('T')[0]
 }
@@ -82,7 +84,16 @@ function toMinutes(value) {
   return hour * 60 + minute
 }
 
-function validateForm(data) {
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file.'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function validateForm(data, isEditing) {
   const errors = {}
   const name = (data.name || '').trim()
   const location = (data.location || '').trim()
@@ -151,6 +162,12 @@ function validateForm(data) {
     errors.description = 'Description must be 250 characters or fewer.'
   }
 
+  if (!isEditing && data.type === 'EQUIPMENT' && data.equipmentImage) {
+    if (!String(data.equipmentImage).startsWith('data:image/')) {
+      errors.equipmentImage = 'Equipment image must be a valid image file.'
+    }
+  }
+
   return errors
 }
 
@@ -165,6 +182,7 @@ const EMPTY_FORM = {
   availabilityEnd: '17:00',
   status: 'ACTIVE',
   description: '',
+  equipmentImage: '',
 }
 
 export default function AdminCatalogue() {
@@ -219,19 +237,73 @@ export default function AdminCatalogue() {
   }, [resources])
 
   function updateFormField(field, value) {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value }
+
+      if (field === 'type' && value !== 'EQUIPMENT') {
+        next.equipmentImage = ''
+      }
+
+      return next
+    })
     setFormErrors((prev) => {
       if (!prev[field]) return prev
       const next = { ...prev }
       delete next[field]
+
+      if (field === 'type') {
+        delete next.equipmentImage
+      }
+
       return next
     })
+  }
+
+  async function handleEquipmentImageChange(e) {
+    const file = e.target.files?.[0]
+
+    if (!file) {
+      updateFormField('equipmentImage', '')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setFormErrors((prev) => ({
+        ...prev,
+        equipmentImage: 'Please upload an image file only.',
+      }))
+      return
+    }
+
+    if (file.size > MAX_EQUIPMENT_IMAGE_SIZE_BYTES) {
+      setFormErrors((prev) => ({
+        ...prev,
+        equipmentImage: 'Image must be 800KB or smaller.',
+      }))
+      return
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      updateFormField('equipmentImage', dataUrl)
+      setFormErrors((prev) => {
+        if (!prev.equipmentImage) return prev
+        const next = { ...prev }
+        delete next.equipmentImage
+        return next
+      })
+    } catch {
+      setFormErrors((prev) => ({
+        ...prev,
+        equipmentImage: 'Failed to process selected image.',
+      }))
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
 
-    const validationErrors = validateForm(formData)
+    const validationErrors = validateForm(formData, Boolean(editingId))
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors)
       return
@@ -251,6 +323,10 @@ export default function AdminCatalogue() {
       availabilityEnd: formData.availabilityEnd,
       status: formData.status,
       description: formData.description.trim(),
+      equipmentImage:
+        !editingId && formData.type === 'EQUIPMENT' && formData.equipmentImage
+          ? formData.equipmentImage
+          : null,
     }
 
     try {
@@ -299,6 +375,7 @@ export default function AdminCatalogue() {
       availabilityEnd: resource.availabilityEnd || '17:00',
       status: resource.status || 'ACTIVE',
       description: resource.description || '',
+      equipmentImage: '',
     })
     setFormErrors({})
     setShowForm(true)
@@ -490,6 +567,45 @@ export default function AdminCatalogue() {
                 </select>
                 {formErrors.type ? <p className="text-sm text-rose-600">{formErrors.type}</p> : null}
               </div>
+
+              {!editingId && formData.type === 'EQUIPMENT' ? (
+                <div className="grid gap-2 md:col-span-2">
+                  <label htmlFor="resource-equipment-image" className="text-sm font-semibold text-slate-700">
+                    Equipment Image (Optional)
+                  </label>
+                  <input
+                    id="resource-equipment-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEquipmentImageChange}
+                    disabled={loading}
+                    aria-invalid={Boolean(formErrors.equipmentImage)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-cyan-900 hover:file:bg-cyan-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/15 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  />
+                  <p className="text-xs text-slate-500">Upload a small image up to 800KB for equipment items.</p>
+                  {formErrors.equipmentImage ? (
+                    <p className="text-sm text-rose-600">{formErrors.equipmentImage}</p>
+                  ) : null}
+
+                  {formData.equipmentImage ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <img
+                        src={formData.equipmentImage}
+                        alt="Equipment preview"
+                        className="h-12 w-12 rounded-lg object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateFormField('equipmentImage', '')}
+                        disabled={loading}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Remove image
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="grid gap-2">
                 <label htmlFor="resource-capacity" className="text-sm font-semibold text-slate-700">
