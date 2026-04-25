@@ -253,7 +253,13 @@ public class IncidentTicketService {
         return incidentTicketRepository.save(ticket);
     }
 
-    public IncidentTicket addComment(String ticketId, String bodyRaw, String authorRaw) {
+    public IncidentTicket addComment(
+            String ticketId,
+            String bodyRaw,
+            String ownerIdRaw,
+            String ownerEmailRaw,
+            String authorRaw
+    ) {
         IncidentTicket ticket = requireTicketById(ticketId);
         String body = blankToNull(bodyRaw);
         if (body == null) {
@@ -269,16 +275,43 @@ public class IncidentTicketService {
         if (author == null) {
             author = "ADMIN";
         }
+        String ownerId = blankToNull(ownerIdRaw);
+        if (ownerId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
+        }
+        String ownerEmail = blankToNull(ownerEmailRaw);
         if (ticket.getComments() == null) {
             ticket.setComments(new ArrayList<>());
         }
+        Instant now = Instant.now();
         TicketComment c = new TicketComment();
         c.setId(UUID.randomUUID().toString());
         c.setAuthor(author);
+        c.setOwnerId(ownerId);
+        c.setOwnerEmail(ownerEmail);
         c.setBody(body);
-        c.setCreatedAt(Instant.now());
+        c.setCreatedAt(now);
+        c.setUpdatedAt(now);
         c.setHidden(false);
         ticket.getComments().add(c);
+        return incidentTicketRepository.save(ticket);
+    }
+
+    public IncidentTicket updateComment(String ticketId, String commentId, String bodyRaw, String ownerIdRaw) {
+        IncidentTicket ticket = requireTicketById(ticketId);
+        TicketComment comment = requireComment(ticket, commentId);
+        requireCommentOwner(comment, ownerIdRaw);
+
+        String body = blankToNull(bodyRaw);
+        if (body == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment body is required");
+        }
+        if (body.length() > 2000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment must be at most 2000 characters");
+        }
+
+        comment.setBody(body);
+        comment.setUpdatedAt(Instant.now());
         return incidentTicketRepository.save(ticket);
     }
 
@@ -289,7 +322,7 @@ public class IncidentTicketService {
         return incidentTicketRepository.save(ticket);
     }
 
-    public IncidentTicket deleteComment(String ticketId, String commentId) {
+    public IncidentTicket deleteComment(String ticketId, String commentId, String ownerIdRaw) {
         IncidentTicket ticket = requireTicketById(ticketId);
         String cid = blankToNull(commentId);
         if (cid == null) {
@@ -299,6 +332,8 @@ public class IncidentTicketService {
         if (list == null || list.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
         }
+        TicketComment comment = requireComment(ticket, cid);
+        requireCommentOwner(comment, ownerIdRaw);
         boolean removed = list.removeIf((c) -> cid.equals(c.getId()));
         if (!removed) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
@@ -331,6 +366,16 @@ public class IncidentTicketService {
             }
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found");
+    }
+
+    private static void requireCommentOwner(TicketComment comment, String ownerIdRaw) {
+        String ownerId = blankToNull(ownerIdRaw);
+        if (ownerId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
+        }
+        if (!ownerId.equals(blankToNull(comment.getOwnerId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the comment owner can modify this comment");
+        }
     }
 
     public void deleteById(String ticketId) {

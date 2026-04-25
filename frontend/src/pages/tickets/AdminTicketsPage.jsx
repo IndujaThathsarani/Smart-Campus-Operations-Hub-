@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
+import { useAuth } from '../../context/AuthContext'
 import { apiDelete, apiGet, apiSend } from '../../services/apiClient'
 
 const ADMIN_TABS = [
@@ -84,7 +85,19 @@ function displayTicketId(ticket) {
   return ticket?.ticketNumber || ticket?.id || '—'
 }
 
+function isCommentOwner(comment, user) {
+  if (!comment || !user) return false
+  if (comment.ownerId && user.id) {
+    return comment.ownerId === user.id
+  }
+  if (comment.ownerEmail && user.email) {
+    return comment.ownerEmail === user.email
+  }
+  return false
+}
+
 export default function AdminTicketsPage() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('view_all')
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -110,7 +123,6 @@ export default function AdminTicketsPage() {
   const [deletingId, setDeletingId] = useState(null)
   const [selectedTicketId, setSelectedTicketId] = useState(null)
   const [newCommentBody, setNewCommentBody] = useState('')
-  const [newCommentAuthor, setNewCommentAuthor] = useState('ADMIN')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentActionId, setCommentActionId] = useState(null)
 
@@ -376,10 +388,7 @@ export default function AdminTicketsPage() {
     try {
       await apiSend(`/api/tickets/${selectedTicketId}/comments`, {
         method: 'POST',
-        body: {
-          body: newCommentBody.trim(),
-          author: newCommentAuthor.trim() || 'ADMIN',
-        },
+        body: { body: newCommentBody.trim() },
       })
       setNewCommentBody('')
       await refreshTickets()
@@ -388,7 +397,7 @@ export default function AdminTicketsPage() {
     } finally {
       setCommentSubmitting(false)
     }
-  }, [newCommentAuthor, newCommentBody, refreshTickets, selectedTicketId])
+  }, [newCommentBody, refreshTickets, selectedTicketId])
 
   const handleToggleCommentHidden = useCallback(
     async (ticketId, commentId, hidden) => {
@@ -1306,9 +1315,19 @@ export default function AdminTicketsPage() {
                             }`}
                           >
                             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                              <span className="font-medium text-slate-800">{c.author || '—'}</span>
-                              <time className="text-xs text-gray-500" dateTime={c.createdAt}>
-                                {formatDate(c.createdAt)}
+                              <div className="min-w-0">
+                                <span className="font-medium text-slate-800">{c.author || '—'}</span>
+                                {isCommentOwner(c, user) && (
+                                  <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <time
+                                className="text-xs text-gray-500"
+                                dateTime={c.updatedAt || c.createdAt}
+                              >
+                                {formatDate(c.updatedAt || c.createdAt)}
                               </time>
                             </div>
                             {c.hidden && (
@@ -1330,7 +1349,7 @@ export default function AdminTicketsPage() {
                               </button>
                               <button
                                 type="button"
-                                disabled={commentActionId === c.id}
+                                disabled={commentActionId === c.id || !isCommentOwner(c, user)}
                                 onClick={() => handleDeleteComment(selectedTicket.id, c.id)}
                                 className="rounded border border-red-200 bg-white px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                               >
@@ -1341,14 +1360,6 @@ export default function AdminTicketsPage() {
                         ))}
                       </div>
                       <div className="mt-3 shrink-0 border-t border-gray-200 pt-3">
-                        <label className="mb-1 block text-xs font-medium text-gray-600">Author label</label>
-                        <input
-                          type="text"
-                          value={newCommentAuthor}
-                          onChange={(e) => setNewCommentAuthor(e.target.value)}
-                          className="mb-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-                          placeholder="ADMIN"
-                        />
                         <label className="mb-1 block text-xs font-medium text-gray-600">New comment</label>
                         <textarea
                           value={newCommentBody}
