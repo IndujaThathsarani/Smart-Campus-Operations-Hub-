@@ -6,14 +6,25 @@ import SystemAdminNavbar from '../components/SystemAdminNavbar'
 import TechnicianNavbar from '../components/TechnicianNavbar'
 
 export default function MainLayout() {
+  const { roles } = useAuth()
   const location = useLocation()
   const adminFullBleed = location.pathname.startsWith('/admin/') && !location.pathname.startsWith('/admin/bookings')
   const bookingsWide = location.pathname.startsWith('/bookings')
   const adminBookings = location.pathname.startsWith('/admin/bookings')
+  const hasRole = (role) => Array.isArray(roles) && roles.includes(role)
+  const navbar = hasRole('ROLE_SYSTEM_ADMIN') ? (
+    <SystemAdminNavbar />
+  ) : hasRole('ROLE_ADMIN') ? (
+    <AdminNavbar />
+  ) : hasRole('ROLE_TECHNICIAN') ? (
+    <TechnicianNavbar />
+  ) : (
+    <Navbar />
+  )
 
   return (
     <div className="app-shell">
-      {adminFullBleed || adminBookings ? <AdminNavbar /> : <Navbar />}
+      {navbar}
       <main className={adminBookings ? 'app-main app-main--wide' : adminFullBleed ? 'app-main app-main--full' : bookingsWide ? 'app-main app-main--wide' : 'app-main'}>
         {adminFullBleed ? (
           <div className="flex min-h-[calc(100vh-4rem)] flex-1 flex-col overflow-hidden bg-[#11192b]">

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import ActionToasts from '../../components/ActionToasts'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
 import TicketSlaBadges from '../../components/TicketSlaBadges'
 import { useAuth } from '../../context/AuthContext'
 import { useResources } from '../../hooks/useResources'
+import { useActionToasts } from '../../hooks/useActionToasts'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 import { API_BASE_URL, apiGet, apiPostFormData, apiSend } from '../../services/apiClient'
 
@@ -170,6 +172,7 @@ function filterCount(tickets, filterId) {
 export default function TicketsListPage() {
   const { user } = useAuth()
   const { resources, loading: resourcesLoading, loadError: resourcesError } = useResources()
+  const { toasts, pushToast, dismissToast } = useActionToasts()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -324,10 +327,20 @@ export default function TicketsListPage() {
         setContactPhone('')
         setSubmitPhase('idle')
         setActiveFilter('ALL')
+        pushToast({
+          title: 'Submitted',
+          message: 'Your ticket was created successfully.',
+          variant: 'success',
+        })
         await loadTickets()
       } catch (err) {
         setSubmitPhase('error')
         setSubmitError(formatSubmitError(err))
+        pushToast({
+          title: 'Submission failed',
+          message: formatSubmitError(err),
+          variant: 'error',
+        })
       }
     },
     [
@@ -341,6 +354,7 @@ export default function TicketsListPage() {
       priority,
       resourceId,
       subject,
+      pushToast,
     ],
   )
 
@@ -357,7 +371,6 @@ export default function TicketsListPage() {
       if (!body) return
 
       setCommentSavingTicketId(ticketId)
-      setError(null)
       try {
         await apiSend(`/api/tickets/${ticketId}/comments`, {
           method: 'POST',
@@ -365,13 +378,22 @@ export default function TicketsListPage() {
         })
         setCommentDrafts((prev) => ({ ...prev, [ticketId]: '' }))
         await loadTickets()
+        pushToast({
+          title: 'Comment added',
+          message: 'Your comment was posted successfully.',
+          variant: 'success',
+        })
       } catch (e) {
-        setError(e?.body?.message || e?.message || 'Could not add comment.')
+        pushToast({
+          title: 'Could not add comment',
+          message: e?.body?.message || e?.message || 'Could not add comment.',
+          variant: 'error',
+        })
       } finally {
         setCommentSavingTicketId(null)
       }
     },
-    [commentDrafts, loadTickets],
+    [commentDrafts, loadTickets, pushToast],
   )
 
   const handleSaveCommentEdit = useCallback(
@@ -380,7 +402,6 @@ export default function TicketsListPage() {
       if (!body) return
 
       setCommentActionId(commentId)
-      setError(null)
       try {
         await apiSend(`/api/tickets/${ticketId}/comments/${commentId}/body`, {
           method: 'PATCH',
@@ -388,13 +409,22 @@ export default function TicketsListPage() {
         })
         setEditCommentId(null)
         await loadTickets()
+        pushToast({
+          title: 'Comment saved',
+          message: 'Your comment changes were saved.',
+          variant: 'success',
+        })
       } catch (e) {
-        setError(e?.body?.message || e?.message || 'Could not update comment.')
+        pushToast({
+          title: 'Could not save comment',
+          message: e?.body?.message || e?.message || 'Could not update comment.',
+          variant: 'error',
+        })
       } finally {
         setCommentActionId(null)
       }
     },
-    [editDrafts, loadTickets],
+    [editDrafts, loadTickets, pushToast],
   )
 
   const handleDeleteComment = useCallback(
@@ -403,7 +433,6 @@ export default function TicketsListPage() {
       if (!ok) return
 
       setCommentActionId(commentId)
-      setError(null)
       try {
         await apiSend(`/api/tickets/${ticketId}/comments/${commentId}`, {
           method: 'DELETE',
@@ -412,13 +441,22 @@ export default function TicketsListPage() {
           setEditCommentId(null)
         }
         await loadTickets()
+        pushToast({
+          title: 'Comment deleted',
+          message: 'The comment was removed successfully.',
+          variant: 'success',
+        })
       } catch (e) {
-        setError(e?.body?.message || e?.message || 'Could not delete comment.')
+        pushToast({
+          title: 'Could not delete comment',
+          message: e?.body?.message || e?.message || 'Could not delete comment.',
+          variant: 'error',
+        })
       } finally {
         setCommentActionId(null)
       }
     },
-    [editCommentId, loadTickets],
+    [editCommentId, loadTickets, pushToast],
   )
 
   const visibleTickets = tickets.filter((ticket) => matchesFilter(ticket, activeFilter))
@@ -432,6 +470,7 @@ export default function TicketsListPage() {
 
   return (
     <section className="w-full min-w-0">
+      <ActionToasts toasts={toasts} onDismiss={dismissToast} />
       <header className="mb-3 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold text-slate-900">Incident tickets</h1>
@@ -479,15 +518,6 @@ export default function TicketsListPage() {
               <h2 className="mt-1 text-lg font-semibold text-slate-900">New incident ticket</h2>
             </div>
           </div>
-
-          {submitPhase === 'error' && submitError && (
-            <p
-              className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800"
-              role="alert"
-            >
-              {submitError}
-            </p>
-          )}
 
           <form onSubmit={handleSubmitTicket} noValidate className="w-full space-y-2.5">
             <div className="grid gap-2.5 xl:grid-cols-2">
