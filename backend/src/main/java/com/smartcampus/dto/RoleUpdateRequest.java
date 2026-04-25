@@ -1,21 +1,19 @@
 package com.smartcampus.dto;
 
-import com.smartcampus.model.Role;
-
 import java.util.Set;
 
 public class RoleUpdateRequest {
 
-    private Set<Role> roles;
+    private Set<String> roles;
 
     public RoleUpdateRequest() {
     }
 
-    public Set<Role> getRoles() {
+    public Set<String> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<String> roles) {
         this.roles = roles;
     }
 }

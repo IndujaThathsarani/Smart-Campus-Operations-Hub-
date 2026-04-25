@@ -17,6 +17,10 @@ const SystemAdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+  const [roleSelections, setRoleSelections] = useState({});
+  const [savingRoleUserId, setSavingRoleUserId] = useState(null);
 
   const loadDashboardData = async () => {
     try {
@@ -29,6 +33,7 @@ const SystemAdminDashboard = () => {
       setStats(statsData);
     } catch (error) {
       console.error("Failed to load system admin data:", error);
+      setActionError("Failed to load system admin data.");
     } finally {
       setLoading(false);
     }
@@ -38,14 +43,46 @@ const SystemAdminDashboard = () => {
     loadDashboardData();
   }, []);
 
+  const handleRoleSelectChange = (userId, role) => {
+    setActionError("");
+    setActionSuccess("");
+    setRoleSelections((prev) => ({
+      ...prev,
+      [userId]: role,
+    }));
+  };
+
   const handleRoleChange = async (userId, role) => {
-    await updateUserRoles(userId, [role]);
-    await loadDashboardData();
+    setActionError("");
+    setActionSuccess("");
+    setSavingRoleUserId(userId);
+
+    try {
+      await updateUserRoles(userId, [role]);
+      await loadDashboardData();
+      setRoleSelections((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      setActionSuccess("Role updated successfully.");
+    } catch (error) {
+      setActionError(error?.body?.message || "Failed to update role. Please try again.");
+    } finally {
+      setSavingRoleUserId(null);
+    }
   };
 
   const handleStatusChange = async (userId, active) => {
-    await updateUserStatus(userId, active);
-    await loadDashboardData();
+    setActionError("");
+    setActionSuccess("");
+    try {
+      await updateUserStatus(userId, active);
+      await loadDashboardData();
+      setActionSuccess("User status updated successfully.");
+    } catch (error) {
+      setActionError(error?.body?.message || "Failed to update user status. Please try again.");
+    }
   };
 
   if (loading) {
@@ -61,6 +98,16 @@ const SystemAdminDashboard = () => {
         <p className="mt-2 text-sm text-slate-600">
           Manage users, roles, and system-level access control.
         </p>
+        {actionError && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {actionError}
+          </div>
+        )}
+        {actionSuccess && (
+          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {actionSuccess}
+          </div>
+        )}
       </div>
 
       {stats && (
@@ -96,6 +143,8 @@ const SystemAdminDashboard = () => {
             <tbody className="divide-y divide-slate-100 bg-white">
               {users.map((user) => {
                 const currentRole = user.roles?.[0] || "ROLE_USER";
+                const selectedRole = roleSelections[user.id] ?? currentRole;
+                const hasPendingRoleChange = selectedRole !== currentRole;
 
                 return (
                   <tr key={user.id}>
@@ -116,9 +165,9 @@ const SystemAdminDashboard = () => {
 
                     <td className="px-5 py-4">
                       <select
-                        value={currentRole}
+                        value={selectedRole}
                         onChange={(event) =>
-                          handleRoleChange(user.id, event.target.value)
+                          handleRoleSelectChange(user.id, event.target.value)
                         }
                         className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                       >
@@ -143,13 +192,26 @@ const SystemAdminDashboard = () => {
                     </td>
 
                     <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => handleStatusChange(user.id, !user.active)}
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
-                      >
-                        {user.active ? "Deactivate" : "Activate"}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {hasPendingRoleChange && (
+                          <button
+                            type="button"
+                            onClick={() => handleRoleChange(user.id, selectedRole)}
+                            disabled={savingRoleUserId === user.id}
+                            className="rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {savingRoleUserId === user.id ? "Saving..." : "Confirm Role"}
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(user.id, !user.active)}
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          {user.active ? "Deactivate" : "Activate"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
