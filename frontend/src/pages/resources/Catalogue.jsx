@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Star } from 'lucide-react'
+import { ChevronRight, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import { apiSend } from '../../services/apiClient'
@@ -341,7 +341,8 @@ export default function Catalogue() {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [filters, setFilters] = useState({
-    location: '',
+    searchBy: 'location',
+    searchText: '',
     minCapacity: '',
     status: 'ACTIVE',
   })
@@ -426,9 +427,12 @@ export default function Catalogue() {
     let next = resources.filter((resource) => {
       // Category filter
       const categoryMatch = matchesCategory(resource.type, activeCategory)
-      // Location filter
-      const locationMatch = !filters.location ||
-        resource.location.toLowerCase().includes(filters.location.toLowerCase())
+      // Search filter
+      const searchValue = String(filters.searchText || '').toLowerCase()
+      const searchTarget = filters.searchBy === 'name'
+        ? String(resource.name || '').toLowerCase()
+        : String(resource.location || '').toLowerCase()
+      const searchMatch = !searchValue || searchTarget.includes(searchValue)
       // Capacity filter
       const capacityFilter = Number(filters.minCapacity)
       const capacityMatch = !filters.minCapacity ||
@@ -436,7 +440,7 @@ export default function Catalogue() {
       // Status filter
       const statusMatch = !filters.status || resource.status === filters.status
 
-      return categoryMatch && locationMatch && capacityMatch && statusMatch
+      return categoryMatch && searchMatch && capacityMatch && statusMatch
     })
 
     if (viewMode === 'FAVOURITES') {
@@ -524,6 +528,10 @@ export default function Catalogue() {
     }
     setSelectedCalendarResourceId(resource.id)
     markRecentlyViewed(resource.id)
+  }
+
+  function openDescriptionPopup(resource) {
+    if (!resource) return
     setDescriptionPopupResource(resource)
   }
 
@@ -853,13 +861,23 @@ export default function Catalogue() {
           alignItems: 'center',
           animationDelay: '460ms',
         }}>
-          <input
-            type="text"
-            placeholder="Search location..."
-            value={filters.location}
-            onChange={(e) => setFilters((f) => ({ ...f, location: e.target.value }))}
-            style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '6px' }}
-          />
+          <div style={{ display: 'flex', flex: 1, minWidth: '320px', gap: '0.5rem' }}>
+            <select
+              value={filters.searchBy}
+              onChange={(e) => setFilters((f) => ({ ...f, searchBy: e.target.value }))}
+              style={{ width: '120px', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff' }}
+            >
+              <option value="location">Location</option>
+              <option value="name">Name</option>
+            </select>
+            <input
+              type="text"
+              placeholder={filters.searchBy === 'name' ? 'Search name...' : 'Search location...'}
+              value={filters.searchText}
+              onChange={(e) => setFilters((f) => ({ ...f, searchText: e.target.value }))}
+              style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '6px' }}
+            />
+          </div>
           <input
             type="number"
             placeholder="Min capacity"
@@ -877,7 +895,7 @@ export default function Catalogue() {
             <option value="OUT_OF_SERVICE">Out of service</option>
           </select>
           <button
-            onClick={() => setFilters({ location: '', minCapacity: '', status: '' })}
+            onClick={() => setFilters({ searchBy: 'location', searchText: '', minCapacity: '', status: '' })}
             style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer' }}
           >
             Reset
@@ -1050,7 +1068,40 @@ export default function Catalogue() {
                             />
                           </button>
                         </td>
-                        <td style={{ padding: '0.75rem', fontWeight: '500' }}>{resource.name}</td>
+                        <td style={{ padding: '0.75rem', fontWeight: '500' }}>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.45rem',
+                              maxWidth: '100%',
+                            }}
+                          >
+                            <span>{resource.name}</span>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openDescriptionPopup(resource)
+                              }}
+                              aria-label={`Show description for ${resource.name || 'resource'}`}
+                              title="Show description"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#111827',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 0,
+                                cursor: 'pointer',
+                                lineHeight: 0,
+                              }}
+                            >
+                              <ChevronRight size={20} strokeWidth={2} />
+                            </button>
+                          </div>
+                        </td>
                         <td style={{ padding: '0.75rem' }}>{resource.location}</td>
                         <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
                         <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
