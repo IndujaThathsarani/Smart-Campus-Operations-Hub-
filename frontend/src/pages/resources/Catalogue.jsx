@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import { apiSend } from '../../services/apiClient'
 
 const CALENDAR_WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const FAVOURITES_STORAGE_KEY = 'smart-campus:favourite-resources'
+const RECENTLY_VIEWED_STORAGE_KEY = 'smart-campus:recently-viewed-resources'
+
+function loadStoredIds(storageKey) {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : []
+  } catch {
+    return []
+  }
+}
 
 function getStatusMeta(status) {
   if (status === 'ACTIVE') {
@@ -331,6 +345,52 @@ export default function Catalogue() {
     minCapacity: '',
     status: 'ACTIVE',
   })
+  const [viewMode, setViewMode] = useState('ALL')
+  const [favoriteResourceIds, setFavoriteResourceIds] = useState(() => loadStoredIds(FAVOURITES_STORAGE_KEY))
+  const [recentlyViewedResourceIds, setRecentlyViewedResourceIds] = useState(() =>
+    loadStoredIds(RECENTLY_VIEWED_STORAGE_KEY),
+  )
+  const [favouritePulseResourceId, setFavouritePulseResourceId] = useState('')
+
+  const favouriteResourceIdSet = useMemo(() => {
+    return new Set(favoriteResourceIds)
+  }, [favoriteResourceIds])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FAVOURITES_STORAGE_KEY, JSON.stringify(favoriteResourceIds))
+  }, [favoriteResourceIds])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(RECENTLY_VIEWED_STORAGE_KEY, JSON.stringify(recentlyViewedResourceIds))
+  }, [recentlyViewedResourceIds])
+
+  function toggleFavourite(resourceId) {
+    if (!resourceId) return
+
+    setFavoriteResourceIds((prev) => {
+      const id = String(resourceId)
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id)
+      }
+      return [id, ...prev]
+    })
+
+    setFavouritePulseResourceId(String(resourceId))
+    window.setTimeout(() => {
+      setFavouritePulseResourceId((current) => (current === String(resourceId) ? '' : current))
+    }, 220)
+  }
+
+  function markRecentlyViewed(resourceId) {
+    if (!resourceId) return
+    const id = String(resourceId)
+    setRecentlyViewedResourceIds((prev) => {
+      const next = [id, ...prev.filter((value) => value !== id)]
+      return next.slice(0, 6)
+    })
+  }
 
   useEffect(() => {
     fetchResources()
@@ -362,7 +422,7 @@ export default function Catalogue() {
 
   // Filter by selected category + other filters
   const filteredResources = useMemo(() => {
-    return resources.filter((resource) => {
+    let next = resources.filter((resource) => {
       // Category filter
       const categoryMatch = matchesCategory(resource.type, activeCategory)
       // Location filter
@@ -377,7 +437,35 @@ export default function Catalogue() {
 
       return categoryMatch && locationMatch && capacityMatch && statusMatch
     })
-  }, [resources, activeCategory, filters])
+
+    if (viewMode === 'FAVOURITES') {
+      next = next.filter((resource) => favouriteResourceIdSet.has(String(resource.id)))
+    }
+
+    if (viewMode === 'AVAILABLE') {
+      next = next.filter((resource) => resource.status === 'ACTIVE')
+    }
+
+    if (viewMode === 'CAPACITY') {
+      next = [...next].sort((left, right) => {
+        const leftCapacity = Number(left.capacity) || 0
+        const rightCapacity = Number(right.capacity) || 0
+        return rightCapacity - leftCapacity
+      })
+    }
+
+    return next
+  }, [resources, activeCategory, filters, viewMode, favouriteResourceIdSet])
+
+  const favouriteCount = useMemo(() => {
+    return resources.filter((resource) => favouriteResourceIdSet.has(String(resource.id))).length
+  }, [resources, favouriteResourceIdSet])
+
+  const recentlyViewedResources = useMemo(() => {
+    return recentlyViewedResourceIds
+      .map((id) => resources.find((resource) => String(resource.id) === String(id)))
+      .filter(Boolean)
+  }, [recentlyViewedResourceIds, resources])
 
   const resourceCategories = useMemo(() => {
     const presentTypes = new Set(
@@ -427,6 +515,21 @@ export default function Catalogue() {
       setSelectedCalendarResourceId(filteredResources[0].id)
     }
   }, [filteredResources, selectedCalendarResourceId])
+
+  useEffect(() => {
+    if (!selectedCalendarResourceId) return
+    markRecentlyViewed(selectedCalendarResourceId)
+  }, [selectedCalendarResourceId])
+
+  function focusResource(resource) {
+    if (!resource) return
+    const type = normalizeTypeKey(resource.type)
+    if (type) {
+      setActiveCategory(type)
+    }
+    setSelectedCalendarResourceId(resource.id)
+    markRecentlyViewed(resource.id)
+  }
 
   const selectedCalendarResource = useMemo(() => {
     return filteredResources.find((resource) => resource.id === selectedCalendarResourceId) || null
@@ -718,6 +821,9 @@ export default function Catalogue() {
           <p style={{ color: '#6b7280', marginTop: '0.25rem' }}>
             {categoryCounts[activeCategory] || 0} resources available
           </p>
+          <p style={{ color: '#64748b', marginTop: '0.35rem', fontSize: '0.85rem' }}>
+            {favouriteCount} favourites saved
+          </p>
         </div>
 
         {/* Stats Cards - Like eProduct order summary */}
@@ -787,6 +893,37 @@ export default function Catalogue() {
           >
             Reset
           </button>
+
+          <div style={{ display: 'inline-flex', gap: '0.35rem', marginLeft: 'auto' }}>
+            {[
+              { id: 'ALL', label: 'All' },
+              { id: 'FAVOURITES', label: 'Favourites' },
+              { id: 'AVAILABLE', label: 'Available' },
+              { id: 'CAPACITY', label: 'Capacity' },
+            ].map((mode) => {
+              const isActive = viewMode === mode.id
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setViewMode(mode.id)}
+                  style={{
+                    padding: '0.45rem 0.7rem',
+                    borderRadius: '999px',
+                    border: isActive ? '1px solid #0f172a' : '1px solid #d1d5db',
+                    background: isActive ? '#0f172a' : '#fff',
+                    color: isActive ? '#fff' : '#334155',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {mode.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div style={{
@@ -819,6 +956,7 @@ export default function Catalogue() {
                     {showEquipmentImageColumn ? (
                       <th style={{ textAlign: 'left', padding: '0.75rem' }}>Image</th>
                     ) : null}
+                    <th style={{ textAlign: 'center', padding: '0.75rem', width: '64px' }}>★</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Name</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Location</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Capacity</th>
@@ -829,96 +967,154 @@ export default function Catalogue() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredResources.map((resource, idx) => (
-                    <tr key={resource.id} className="ticket-enter" style={{ borderTop: '1px solid #e5e7eb', animationDelay: `${idx * 45}ms` }}>
-                      <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
-                      {showEquipmentImageColumn ? (
-                        <td style={{ padding: '0.75rem' }}>
-                          {getEquipmentImage(resource) ? (
-                            <img
-                              src={getEquipmentImage(resource)}
-                              alt={`${resource.name || 'Equipment'} thumbnail`}
-                              style={{
+                  {filteredResources.map((resource, idx) => {
+                    const isFavourite = favouriteResourceIdSet.has(String(resource.id))
+                    const isPulsing = favouritePulseResourceId === String(resource.id)
+
+                    return (
+                      <tr
+                        key={resource.id}
+                        className="ticket-enter"
+                        onClick={() => focusResource(resource)}
+                        style={{
+                          borderTop: '1px solid #e5e7eb',
+                          animationDelay: `${idx * 45}ms`,
+                          background: '#fff',
+                          transition: 'background 0.2s ease',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
+                        {showEquipmentImageColumn ? (
+                          <td style={{ padding: '0.75rem' }}>
+                            {getEquipmentImage(resource) ? (
+                              <img
+                                src={getEquipmentImage(resource)}
+                                alt={`${resource.name || 'Equipment'} thumbnail`}
+                                style={{
+                                  width: '48px',
+                                  height: '48px',
+                                  borderRadius: '10px',
+                                  objectFit: 'cover',
+                                  border: '1px solid #dbe4f0',
+                                  background: '#f8fafc',
+                                  display: 'block',
+                                }}
+                              />
+                            ) : (
+                              <div style={{
                                 width: '48px',
                                 height: '48px',
                                 borderRadius: '10px',
-                                objectFit: 'cover',
-                                border: '1px solid #dbe4f0',
+                                border: '1px dashed #cbd5e1',
                                 background: '#f8fafc',
-                                display: 'block',
-                              }}
-                            />
-                          ) : (
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              borderRadius: '10px',
-                              border: '1px dashed #cbd5e1',
-                              background: '#f8fafc',
-                              color: '#94a3b8',
-                              display: 'flex',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.65rem',
+                                lineHeight: 1,
+                                textAlign: 'center',
+                              }}>
+                                No
+                                <br />
+                                image
+                              </div>
+                            )}
+                          </td>
+                        ) : null}
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              toggleFavourite(resource.id)
+                            }}
+                            aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+                            title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              color: '#111827',
+                              width: 'auto',
+                              height: 'auto',
+                              borderRadius: 0,
+                              display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: '0.65rem',
-                              lineHeight: 1,
-                              textAlign: 'center',
-                            }}>
-                              No
-                              <br />
-                              image
-                            </div>
-                          )}
+                              padding: '0.1rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              transform: isPulsing ? 'scale(1.18) rotate(-8deg)' : 'scale(1)',
+                              boxShadow: 'none',
+                            }}
+                          >
+                            <Star
+                              size={20}
+                              strokeWidth={1.7}
+                              style={{
+                                stroke: '#111827',
+                                fill: isFavourite ? '#facc15' : 'transparent',
+                                transition: 'fill 0.2s ease, transform 0.2s ease',
+                                transform: isFavourite ? 'scale(1.03)' : 'scale(1)',
+                              }}
+                            />
+                          </button>
                         </td>
-                      ) : null}
-                      <td style={{ padding: '0.75rem', fontWeight: '500' }}>{resource.name}</td>
-                      <td style={{ padding: '0.75rem' }}>{resource.location}</td>
-                      <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
-                        {resource.availabilityStartDate && resource.availabilityEndDate
-                          ? `${resource.availabilityStartDate} - ${resource.availabilityEndDate}`
-                          : 'Not set'}
-                      </td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
-                        {resource.availabilityStart} - {resource.availabilityEnd}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '20px',
-                          backgroundColor: getStatusMeta(resource.status).color === '#16a34a' ? '#dcfce7' : '#fee2e2',
-                          fontSize: '0.7rem',
-                          fontWeight: '500'
-                        }}>
+                        <td style={{ padding: '0.75rem', fontWeight: '500' }}>{resource.name}</td>
+                        <td style={{ padding: '0.75rem' }}>{resource.location}</td>
+                        <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
+                          {resource.availabilityStartDate && resource.availabilityEndDate
+                            ? `${resource.availabilityStartDate} - ${resource.availabilityEndDate}`
+                            : 'Not set'}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
+                          {resource.availabilityStart} - {resource.availabilityEnd}
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
                           <span style={{
-                            width: '0.5rem',
-                            height: '0.5rem',
-                            borderRadius: '50%',
-                            backgroundColor: getStatusMeta(resource.status).color
-                          }} />
-                          {getStatusMeta(resource.status).label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                        <button
-                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.id)}&location=${encodeURIComponent(resource.location || '')}&capacity=${encodeURIComponent(resource.capacity ?? '')}&returnTo=${encodeURIComponent('/resources')}`)}
-                          disabled={resource.status !== 'ACTIVE'}
-                          style={{
-                            padding: '0.3rem 0.75rem',
-                            borderRadius: '6px',
-                            border: '1px solid #d1d5db',
-                            backgroundColor: resource.status === 'ACTIVE' ? '#3b82f6' : '#e5e7eb',
-                            color: resource.status === 'ACTIVE' ? '#fff' : '#9ca3af',
-                            cursor: resource.status === 'ACTIVE' ? 'pointer' : 'not-allowed'
-                          }}
-                        >
-                          Book ✏️
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '20px',
+                            backgroundColor: getStatusMeta(resource.status).color === '#16a34a' ? '#dcfce7' : '#fee2e2',
+                            fontSize: '0.7rem',
+                            fontWeight: '500'
+                          }}>
+                            <span style={{
+                              width: '0.5rem',
+                              height: '0.5rem',
+                              borderRadius: '50%',
+                              backgroundColor: getStatusMeta(resource.status).color
+                            }} />
+                            {getStatusMeta(resource.status).label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              markRecentlyViewed(resource.id)
+                              navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.id)}&location=${encodeURIComponent(resource.location || '')}&capacity=${encodeURIComponent(resource.capacity ?? '')}&returnTo=${encodeURIComponent('/resources')}`)
+                            }}
+                            disabled={resource.status !== 'ACTIVE'}
+                            style={{
+                              padding: '0.3rem 0.75rem',
+                              borderRadius: '6px',
+                              border: '1px solid #d1d5db',
+                              backgroundColor: resource.status === 'ACTIVE' ? '#3b82f6' : '#e5e7eb',
+                              color: resource.status === 'ACTIVE' ? '#fff' : '#9ca3af',
+                              cursor: resource.status === 'ACTIVE' ? 'pointer' : 'not-allowed'
+                            }}
+                          >
+                            Book ✏️
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -1138,6 +1334,63 @@ export default function Catalogue() {
               flexDirection: 'column',
               gap: '0.55rem'
             }}>
+              <div style={{
+                borderRadius: '10px',
+                background: '#f8fafc',
+                border: '1px solid #dbe4f0',
+                padding: '0.65rem',
+              }}>
+                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                  Recently viewed resources
+                </div>
+                {recentlyViewedResources.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.32rem' }}>
+                    {recentlyViewedResources.slice(0, 5).map((resource) => {
+                      const fav = favouriteResourceIdSet.has(String(resource.id))
+                      return (
+                        <button
+                          key={resource.id}
+                          type="button"
+                          onClick={() => focusResource(resource)}
+                          style={{
+                            border: '1px solid #dbe4f0',
+                            background: '#fff',
+                            borderRadius: '8px',
+                            padding: '0.45rem 0.5rem',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontSize: '0.73rem',
+                            color: '#334155',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.4rem',
+                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                          }}
+                        >
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {resource.name}
+                          </span>
+                          <Star
+                            size={14}
+                            strokeWidth={1.7}
+                            style={{
+                              stroke: '#111827',
+                              fill: fav ? '#facc15' : 'transparent',
+                              flexShrink: 0,
+                            }}
+                          />
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.73rem', color: '#64748b' }}>
+                    No recently viewed resources yet.
+                  </div>
+                )}
+              </div>
+
               <div>
                 <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Selected date</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>

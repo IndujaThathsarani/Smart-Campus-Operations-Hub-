@@ -4,6 +4,34 @@ import { RESOURCE_TYPES } from '../../utils/resourceCatalogueStorage'
 
 const MAX_EQUIPMENT_IMAGE_SIZE_BYTES = 800 * 1024
 
+const CATEGORY_META = {
+  LECTURE_HALL: { label: 'Lecture Hall', icon: '🏛️' },
+  LABORATORY: { label: 'Laboratory', icon: '🔬' },
+  AUDITORIUM: { label: 'Auditorium', icon: '🎤' },
+  MEETING_ROOM: { label: 'Meeting Room', icon: '💼' },
+  SEMINAR_ROOM: { label: 'Seminar Room', icon: '🗣️' },
+  EQUIPMENT: { label: 'Equipment', icon: '📷' },
+  TRAINING_ROOM: { label: 'Training Room', icon: '🏫' },
+  WORKSHOP_AREA: { label: 'Workshop Area', icon: '🛠️' },
+  STUDIO: { label: 'Studio', icon: '🎬' },
+  LIBRARY_SPACE: { label: 'Library Space', icon: '📚' },
+  OTHER: { label: 'Other', icon: '📦' },
+}
+
+const DEFAULT_CATEGORY_IDS = [
+  'LECTURE_HALL',
+  'LABORATORY',
+  'MEETING_ROOM',
+  'AUDITORIUM',
+  'SEMINAR_ROOM',
+  'EQUIPMENT',
+  'TRAINING_ROOM',
+  'WORKSHOP_AREA',
+  'STUDIO',
+  'LIBRARY_SPACE',
+  'OTHER',
+]
+
 function getTodayIsoDate() {
   return new Date().toISOString().split('T')[0]
 }
@@ -36,6 +64,15 @@ function normalizeTypeForForm(type) {
   return type || 'LECTURE_HALL'
 }
 
+function getCategoryMeta(type) {
+  const base = CATEGORY_META[type] || { label: getTypeLabel(type), icon: '📦' }
+  return {
+    id: type,
+    label: base.label,
+    icon: base.icon,
+  }
+}
+
 function matchesTypeFilter(resourceType, selectedType) {
   if (!selectedType) return true
   if (selectedType === 'LECTURE_HALL') {
@@ -51,6 +88,11 @@ function normalizeTypeForApi(type) {
   if (type === 'LECTURE_HALL') return 'CLASSROOM'
   if (type === 'LABORATORY') return 'LAB'
   return type
+}
+
+function getEquipmentImage(resource) {
+  if (!resource || normalizeTypeForForm(resource.type) !== 'EQUIPMENT') return ''
+  return typeof resource.equipmentImage === 'string' ? resource.equipmentImage : ''
 }
 
 function getStatusMeta(status) {
@@ -189,11 +231,13 @@ export default function AdminCatalogue() {
   const [resources, setResources] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [filters, setFilters] = useState({ type: '', location: '', status: '' })
+  const [filters, setFilters] = useState({ location: '', status: '' })
+  const [activeCategory, setActiveCategory] = useState('')
   const [formData, setFormData] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [reportLoading, setReportLoading] = useState(false)
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -215,16 +259,42 @@ export default function AdminCatalogue() {
     }
   }
 
+  const resourceCategories = useMemo(() => {
+    const presentTypes = new Set(resources.map((resource) => normalizeTypeForForm(resource.type)).filter(Boolean))
+    const orderedTypes = [
+      ...DEFAULT_CATEGORY_IDS,
+      ...Array.from(presentTypes).filter((type) => !DEFAULT_CATEGORY_IDS.includes(type)),
+    ]
+    const seen = new Set()
+    const categories = []
+
+    for (const type of orderedTypes) {
+      if (seen.has(type)) continue
+      seen.add(type)
+      categories.push(getCategoryMeta(type))
+    }
+
+    return categories
+  }, [resources])
+
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    resourceCategories.forEach((category) => {
+      counts[category.id] = resources.filter((resource) => matchesTypeFilter(resource.type, category.id)).length
+    })
+    return counts
+  }, [resources, resourceCategories])
+
   const filtered = useMemo(() => {
     return resources.filter((resource) => {
-      const typeMatch = matchesTypeFilter(resource.type, filters.type)
+      const typeMatch = matchesTypeFilter(resource.type, activeCategory)
       const locationMatch =
         !filters.location ||
         (resource.location || '').toLowerCase().includes(filters.location.toLowerCase())
       const statusMatch = !filters.status || resource.status === filters.status
       return typeMatch && locationMatch && statusMatch
     })
-  }, [resources, filters])
+  }, [resources, filters, activeCategory])
 
   const stats = useMemo(() => {
     const active = resources.filter((resource) => resource.status === 'ACTIVE').length
@@ -236,6 +306,8 @@ export default function AdminCatalogue() {
       outOfService,
     }
   }, [resources])
+
+  const showEquipmentImageColumn = activeCategory === 'EQUIPMENT'
 
   function updateFormField(field, value) {
     setFormData((prev) => {
@@ -447,11 +519,117 @@ export default function AdminCatalogue() {
     }
   }
 
-  return (
-    <section className="relative h-full min-h-0 overflow-y-auto rounded-[28px] border border-slate-200 bg-white px-4 py-5 text-slate-900 shadow-xl shadow-slate-200/70 sm:px-6 lg:px-8">
+  async function handleQuickStatusToggle(resource) {
+    if (!resource || statusUpdatingId) return
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-5 pb-6">
-        <header className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    const nextStatus = resource.status === 'ACTIVE' ? 'OUT_OF_SERVICE' : 'ACTIVE'
+    const payload = {
+      name: String(resource.name || '').trim(),
+      type: normalizeTypeForApi(normalizeTypeForForm(resource.type)),
+      capacity: Number(resource.capacity),
+      location: String(resource.location || '').trim(),
+      availabilityStartDate: resource.availabilityStartDate,
+      availabilityEndDate: resource.availabilityEndDate,
+      availabilityStart: resource.availabilityStart,
+      availabilityEnd: resource.availabilityEnd,
+      status: nextStatus,
+      description: String(resource.description || '').trim(),
+      equipmentImage: null,
+    }
+
+    setStatusUpdatingId(resource.id)
+    setError(null)
+
+    try {
+      await apiSend(`/api/resources/${resource.id}`, {
+        method: 'PUT',
+        body: payload,
+      })
+
+      setResources((prev) =>
+        prev.map((item) =>
+          item.id === resource.id
+            ? {
+                ...item,
+                status: nextStatus,
+              }
+            : item,
+        ),
+      )
+    } catch (err) {
+      setError(err.body?.message || 'Failed to update status')
+      console.error(err)
+    } finally {
+      setStatusUpdatingId(null)
+    }
+  }
+
+  return (
+    <section className="relative min-h-[calc(100vh-4rem)] w-full overflow-y-auto bg-slate-100 text-slate-900">
+
+      <div className="relative flex w-full gap-0 pb-0">
+        <aside className="hidden w-[230px] shrink-0 self-stretch border-r border-slate-800 bg-slate-950 text-slate-100 lg:block">
+          <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col">
+            <div className="border-b border-slate-800 px-5 pb-4 pt-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Admin</p>
+              <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight text-slate-100">Resource control</h2>
+              <p className="mt-1 text-xs text-slate-400">Group and manage facilities</p>
+            </div>
+
+            <div className="mt-3 flex-1 overflow-y-auto px-2 pb-3">
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveCategory('')}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
+                    !activeCategory
+                      ? 'bg-slate-700 text-white shadow-sm'
+                      : 'text-slate-200 hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <span>📚</span>
+                    All Resources
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${!activeCategory ? 'bg-white/70' : 'bg-slate-700 text-slate-200'}`}>
+                    {resources.length}
+                  </span>
+                </button>
+
+                {resourceCategories.map((category) => {
+                  const isActive = activeCategory === category.id
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setActiveCategory(category.id)}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
+                        isActive
+                          ? 'bg-slate-700 text-white shadow-sm'
+                          : 'text-slate-200 hover:bg-slate-900'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span>{category.icon}</span>
+                        {category.label}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? 'bg-white/70' : 'bg-slate-700 text-slate-200'}`}>
+                        {categoryCounts[category.id] || 0}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-800 px-4 py-3 text-xs text-slate-500">
+              Organize by category
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1 px-2 py-3 sm:px-3 lg:px-4">
+        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-700">
@@ -462,6 +640,9 @@ export default function AdminCatalogue() {
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
                 Manage smart campus facilities, statuses, and availability from one polished control panel.
+              </p>
+              <p className="mt-2 text-sm font-medium text-slate-500">
+                {activeCategory ? `${getTypeLabel(activeCategory)} view` : 'All categories view'}
               </p>
             </div>
 
@@ -493,22 +674,22 @@ export default function AdminCatalogue() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <article className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-3">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
             <p className="text-sm text-slate-600">Total Resources</p>
             <strong className="mt-2 block text-3xl font-semibold text-slate-900">{stats.total}</strong>
           </article>
-          <article className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
             <p className="text-sm text-emerald-700">Active</p>
             <strong className="mt-2 block text-3xl font-semibold text-emerald-800">{stats.active}</strong>
           </article>
-          <article className="rounded-[22px] border border-rose-200 bg-rose-50 p-5 shadow-sm">
+          <article className="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
             <p className="text-sm text-rose-700">Out of Service</p>
             <strong className="mt-2 block text-3xl font-semibold text-rose-800">{stats.outOfService}</strong>
           </article>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2">
               <label htmlFor="filter-type" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
@@ -516,15 +697,15 @@ export default function AdminCatalogue() {
               </label>
               <select
                 id="filter-type"
-                value={filters.type}
-                onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
                 disabled={loading}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">All Types</option>
-                {RESOURCE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {getTypeLabel(type)}
+                {resourceCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
                   </option>
                 ))}
               </select>
@@ -568,7 +749,7 @@ export default function AdminCatalogue() {
           <form
             onSubmit={handleSubmit}
             noValidate
-            className="rounded-[28px] border border-white/10 bg-white p-5 text-slate-900 shadow-2xl shadow-slate-950/15 sm:p-6"
+            className="rounded-2xl border border-white/10 bg-white p-5 text-slate-900 shadow-2xl shadow-slate-950/15 sm:p-6"
           >
             <div className="flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -835,12 +1016,15 @@ export default function AdminCatalogue() {
           </form>
         ) : null}
 
-        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-lg shadow-slate-200/70">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/70">
           <div className="overflow-x-auto">
             <table className="min-w-[56rem] w-full border-collapse text-left">
               <thead className="bg-slate-950 text-xs uppercase tracking-[0.18em] text-slate-300">
                 <tr>
                   <th className="px-5 py-4 font-semibold">Name</th>
+                  {showEquipmentImageColumn ? (
+                    <th className="px-5 py-4 font-semibold">Image</th>
+                  ) : null}
                   <th className="px-5 py-4 font-semibold">Type</th>
                   <th className="px-5 py-4 font-semibold">Location</th>
                   <th className="px-5 py-4 font-semibold">Date Range</th>
@@ -852,23 +1036,39 @@ export default function AdminCatalogue() {
               <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-5 py-8 text-center text-sm text-slate-500">
+                    <td colSpan={showEquipmentImageColumn ? 8 : 7} className="px-5 py-8 text-center text-sm text-slate-500">
                       Loading resources...
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-5 py-8 text-center text-sm text-slate-500">
+                    <td colSpan={showEquipmentImageColumn ? 8 : 7} className="px-5 py-8 text-center text-sm text-slate-500">
                       No resources found for selected filters.
                     </td>
                   </tr>
                 ) : (
                   filtered.map((resource) => {
                     const statusMeta = getStatusMeta(resource.status)
+                    const equipmentImage = getEquipmentImage(resource)
 
                     return (
                       <tr key={resource.id} className="transition hover:bg-slate-50">
                         <td className="px-5 py-4 font-medium text-slate-950">{resource.name}</td>
+                        {showEquipmentImageColumn ? (
+                          <td className="px-5 py-4">
+                            {equipmentImage ? (
+                              <img
+                                src={equipmentImage}
+                                alt={`${resource.name || 'Equipment'} thumbnail`}
+                                className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[10px] font-semibold uppercase text-slate-400">
+                                No image
+                              </div>
+                            )}
+                          </td>
+                        ) : null}
                         <td className="px-5 py-4">{getTypeLabel(resource.type)}</td>
                         <td className="px-5 py-4">{resource.location}</td>
                         <td className="px-5 py-4 text-sm text-slate-600">
@@ -878,12 +1078,16 @@ export default function AdminCatalogue() {
                         </td>
                         <td className="px-5 py-4">{resource.capacity}</td>
                         <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.cardClass}`}
+                          <button
+                            type="button"
+                            disabled={loading || statusUpdatingId === resource.id}
+                            onClick={() => handleQuickStatusToggle(resource)}
+                            title="Click to toggle status"
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60 ${statusMeta.cardClass}`}
                           >
-                            <span>{statusMeta.label}</span>
+                            <span>{statusUpdatingId === resource.id ? 'Updating...' : statusMeta.label}</span>
                             <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${statusMeta.dotClass}`} />
-                          </span>
+                          </button>
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="inline-flex flex-wrap items-center justify-end gap-2">
@@ -910,6 +1114,7 @@ export default function AdminCatalogue() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </div>
     </section>
