@@ -461,12 +461,6 @@ export default function Catalogue() {
     return resources.filter((resource) => favouriteResourceIdSet.has(String(resource.id))).length
   }, [resources, favouriteResourceIdSet])
 
-  const recentlyViewedResources = useMemo(() => {
-    return recentlyViewedResourceIds
-      .map((id) => resources.find((resource) => String(resource.id) === String(id)))
-      .filter(Boolean)
-  }, [recentlyViewedResourceIds, resources])
-
   const resourceCategories = useMemo(() => {
     const presentTypes = new Set(
       resources.map((resource) => normalizeTypeKey(resource.type)).filter(Boolean),
@@ -723,15 +717,14 @@ export default function Catalogue() {
       {/* SIDEBAR - Like eProduct Dashboard */}
       <aside className="ticket-enter" style={{
         width: '280px',
-        backgroundColor: '#1e293b',
+        backgroundColor: '#020617',
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',
-        position: 'sticky',
-        top: 0,
-        alignSelf: 'flex-start',
-        height: 'calc(100vh - 4rem)',
-        overflowY: 'auto',
+        position: 'relative',
+        alignSelf: 'stretch',
+        minHeight: 'calc(100vh - 4rem)',
+        overflowY: 'visible',
         zIndex: 1,
         animationDelay: '40ms',
       }}>
@@ -794,12 +787,6 @@ export default function Catalogue() {
             ))}
           </div>
 
-          {/* Bottom Menu Items */}
-          <div style={{ marginTop: '2rem' }}>
-            <div style={{ padding: '0.5rem 1.5rem', color: '#94a3b8', fontSize: '0.7rem', textTransform: 'uppercase' }}>
-              MANAGEMENT
-            </div>
-          </div>
         </nav>
 
         {/* Footer */}
@@ -1334,63 +1321,6 @@ export default function Catalogue() {
               flexDirection: 'column',
               gap: '0.55rem'
             }}>
-              <div style={{
-                borderRadius: '10px',
-                background: '#f8fafc',
-                border: '1px solid #dbe4f0',
-                padding: '0.65rem',
-              }}>
-                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
-                  Recently viewed resources
-                </div>
-                {recentlyViewedResources.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.32rem' }}>
-                    {recentlyViewedResources.slice(0, 5).map((resource) => {
-                      const fav = favouriteResourceIdSet.has(String(resource.id))
-                      return (
-                        <button
-                          key={resource.id}
-                          type="button"
-                          onClick={() => focusResource(resource)}
-                          style={{
-                            border: '1px solid #dbe4f0',
-                            background: '#fff',
-                            borderRadius: '8px',
-                            padding: '0.45rem 0.5rem',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            fontSize: '0.73rem',
-                            color: '#334155',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '0.4rem',
-                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                          }}
-                        >
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {resource.name}
-                          </span>
-                          <Star
-                            size={14}
-                            strokeWidth={1.7}
-                            style={{
-                              stroke: '#111827',
-                              fill: fav ? '#facc15' : 'transparent',
-                              flexShrink: 0,
-                            }}
-                          />
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '0.73rem', color: '#64748b' }}>
-                    No recently viewed resources yet.
-                  </div>
-                )}
-              </div>
-
               <div>
                 <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Selected date</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
