@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Eye, FileText, ImageIcon, MessageSquareText, Pencil, PlusCircle, Ticket, Trash2 } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
+import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
 import { useAuth } from '../../context/AuthContext'
 import { useResources } from '../../hooks/useResources'
@@ -464,7 +465,8 @@ export default function TicketsListPage() {
   const submitting = submitPhase === 'loading'
 
   return (
-    <section className="w-full min-w-0">
+    <section className="relative w-full min-w-0 overflow-hidden">
+      <TicketParticlesBackground />
       <ActionToasts toasts={toasts} onDismiss={dismissToast} />
       <header className="mb-3 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
