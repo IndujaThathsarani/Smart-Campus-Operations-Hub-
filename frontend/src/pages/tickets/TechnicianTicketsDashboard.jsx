@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Eye, ImageIcon, MessageSquareText, Pencil, Ticket, Trash2, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
 import TicketParticlesBackground from '../../components/TicketParticlesBackground'
+import TicketSlaCountdown from '../../components/TicketSlaCountdown'
 import { useAuth } from '../../context/AuthContext'
 import { useActionToasts } from '../../hooks/useActionToasts'
 import { API_BASE_URL, apiGet, apiSend } from '../../services/apiClient'
@@ -537,9 +538,18 @@ export default function TechnicianTicketsDashboard() {
                   return (
                     <li
                       key={ticket.id}
-                      className="ticket-enter mx-auto w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[62%]"
+                      className="ticket-enter relative mx-auto w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[62%]"
                       style={{ animationDelay: `${index * 80}ms` }}
                     >
+                      <TicketSlaCountdown
+                        priority={ticket.priority}
+                        createdAt={ticket.createdAt}
+                        resolvedAt={ticket.resolvedAt}
+                        status={ticket.status}
+                        now={clockTick}
+                        size={80}
+                        className="absolute right-5 top-1/2 z-10 -translate-y-1/2"
+                      />
                       <div className="flex items-center gap-4">
                         <div className="flex shrink-0 items-center justify-center py-2">
                           <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm">
@@ -547,7 +557,7 @@ export default function TechnicianTicketsDashboard() {
                           </span>
                         </div>
 
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 pr-28">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <span className="block break-all font-mono text-sm font-medium text-slate-700" title={ticket.id}>
@@ -590,7 +600,7 @@ export default function TechnicianTicketsDashboard() {
                               </div>
                             </div>
 
-                            <div className="flex shrink-0 flex-col items-end gap-2">
+                            <div className="flex shrink-0 flex-col items-end gap-2 self-start">
                               <div className="max-w-full">
                                 <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} compact />
                               </div>

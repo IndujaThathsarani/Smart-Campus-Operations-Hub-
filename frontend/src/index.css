@@ -53,8 +53,49 @@ body {
   animation: ticket-enter 760ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
 }
 
+.ticket-sla-timer {
+  border-radius: 9999px;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.ticket-sla-timer:hover {
+  transform: translateY(-1px);
+}
+
+.ticket-sla-timer-urgent {
+  filter: drop-shadow(0 6px 14px rgba(220, 38, 38, 0.22));
+}
+
+.ticket-sla-timer-high {
+  filter: drop-shadow(0 6px 14px rgba(234, 88, 12, 0.2));
+}
+
+.ticket-sla-timer-medium {
+  filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.2));
+}
+
+.ticket-sla-timer-low {
+  filter: drop-shadow(0 6px 14px rgba(5, 150, 105, 0.2));
+}
+
+.ticket-sla-timer-overdue {
+  filter: drop-shadow(0 8px 16px rgba(225, 29, 72, 0.24));
+}
+
+.ticket-sla-timer-complete {
+  filter: drop-shadow(0 8px 16px rgba(15, 118, 110, 0.2));
+}
+
+.ticket-sla-timer-default {
+  filter: drop-shadow(0 6px 14px rgba(100, 116, 139, 0.16));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ticket-enter {
     animation: none;
+  }
+
+  .ticket-sla-timer {
+    transition: none;
   }
 }

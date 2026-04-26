@@ -1,13 +1,13 @@
 import { MessageSquareText, Wrench } from 'lucide-react'
 
-const SLA_TARGETS_MINUTES = {
+export const SLA_TARGETS_MINUTES = {
   URGENT: { firstResponse: 30, resolution: 4 * 60 },
   HIGH: { firstResponse: 2 * 60, resolution: 24 * 60 },
   MEDIUM: { firstResponse: 4 * 60, resolution: 48 * 60 },
   LOW: { firstResponse: 8 * 60, resolution: 72 * 60 },
 }
 
-function formatDurationMinutes(totalMinutes) {
+export function formatDurationMinutes(totalMinutes) {
   const mins = Math.max(0, Math.round(totalMinutes))
   const days = Math.floor(mins / 1440)
   const hours = Math.floor((mins % 1440) / 60)
