@@ -1,8 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronRight, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import { apiSend } from '../../services/apiClient'
 
 const CALENDAR_WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const FAVOURITES_STORAGE_KEY = 'smart-campus:favourite-resources'
+const RECENTLY_VIEWED_STORAGE_KEY = 'smart-campus:recently-viewed-resources'
+
+function loadStoredIds(storageKey) {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : []
+  } catch {
+    return []
+  }
+}
 
 function getStatusMeta(status) {
   if (status === 'ACTIVE') {
@@ -326,10 +341,58 @@ export default function Catalogue() {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [filters, setFilters] = useState({
-    location: '',
+    searchBy: 'location',
+    searchText: '',
     minCapacity: '',
     status: 'ACTIVE',
   })
+  const [viewMode, setViewMode] = useState('ALL')
+  const [favoriteResourceIds, setFavoriteResourceIds] = useState(() => loadStoredIds(FAVOURITES_STORAGE_KEY))
+  const [recentlyViewedResourceIds, setRecentlyViewedResourceIds] = useState(() =>
+    loadStoredIds(RECENTLY_VIEWED_STORAGE_KEY),
+  )
+  const [favouritePulseResourceId, setFavouritePulseResourceId] = useState('')
+  const [descriptionPopupResource, setDescriptionPopupResource] = useState(null)
+
+  const favouriteResourceIdSet = useMemo(() => {
+    return new Set(favoriteResourceIds)
+  }, [favoriteResourceIds])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FAVOURITES_STORAGE_KEY, JSON.stringify(favoriteResourceIds))
+  }, [favoriteResourceIds])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(RECENTLY_VIEWED_STORAGE_KEY, JSON.stringify(recentlyViewedResourceIds))
+  }, [recentlyViewedResourceIds])
+
+  function toggleFavourite(resourceId) {
+    if (!resourceId) return
+
+    setFavoriteResourceIds((prev) => {
+      const id = String(resourceId)
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id)
+      }
+      return [id, ...prev]
+    })
+
+    setFavouritePulseResourceId(String(resourceId))
+    window.setTimeout(() => {
+      setFavouritePulseResourceId((current) => (current === String(resourceId) ? '' : current))
+    }, 220)
+  }
+
+  function markRecentlyViewed(resourceId) {
+    if (!resourceId) return
+    const id = String(resourceId)
+    setRecentlyViewedResourceIds((prev) => {
+      const next = [id, ...prev.filter((value) => value !== id)]
+      return next.slice(0, 6)
+    })
+  }
 
   useEffect(() => {
     fetchResources()
@@ -361,12 +424,15 @@ export default function Catalogue() {
 
   // Filter by selected category + other filters
   const filteredResources = useMemo(() => {
-    return resources.filter((resource) => {
+    let next = resources.filter((resource) => {
       // Category filter
       const categoryMatch = matchesCategory(resource.type, activeCategory)
-      // Location filter
-      const locationMatch = !filters.location ||
-        resource.location.toLowerCase().includes(filters.location.toLowerCase())
+      // Search filter
+      const searchValue = String(filters.searchText || '').toLowerCase()
+      const searchTarget = filters.searchBy === 'name'
+        ? String(resource.name || '').toLowerCase()
+        : String(resource.location || '').toLowerCase()
+      const searchMatch = !searchValue || searchTarget.includes(searchValue)
       // Capacity filter
       const capacityFilter = Number(filters.minCapacity)
       const capacityMatch = !filters.minCapacity ||
@@ -374,9 +440,31 @@ export default function Catalogue() {
       // Status filter
       const statusMatch = !filters.status || resource.status === filters.status
 
-      return categoryMatch && locationMatch && capacityMatch && statusMatch
+      return categoryMatch && searchMatch && capacityMatch && statusMatch
     })
-  }, [resources, activeCategory, filters])
+
+    if (viewMode === 'FAVOURITES') {
+      next = next.filter((resource) => favouriteResourceIdSet.has(String(resource.id)))
+    }
+
+    if (viewMode === 'AVAILABLE') {
+      next = next.filter((resource) => resource.status === 'ACTIVE')
+    }
+
+    if (viewMode === 'CAPACITY') {
+      next = [...next].sort((left, right) => {
+        const leftCapacity = Number(left.capacity) || 0
+        const rightCapacity = Number(right.capacity) || 0
+        return rightCapacity - leftCapacity
+      })
+    }
+
+    return next
+  }, [resources, activeCategory, filters, viewMode, favouriteResourceIdSet])
+
+  const favouriteCount = useMemo(() => {
+    return resources.filter((resource) => favouriteResourceIdSet.has(String(resource.id))).length
+  }, [resources, favouriteResourceIdSet])
 
   const resourceCategories = useMemo(() => {
     const presentTypes = new Set(
@@ -426,6 +514,26 @@ export default function Catalogue() {
       setSelectedCalendarResourceId(filteredResources[0].id)
     }
   }, [filteredResources, selectedCalendarResourceId])
+
+  useEffect(() => {
+    if (!selectedCalendarResourceId) return
+    markRecentlyViewed(selectedCalendarResourceId)
+  }, [selectedCalendarResourceId])
+
+  function focusResource(resource) {
+    if (!resource) return
+    const type = normalizeTypeKey(resource.type)
+    if (type) {
+      setActiveCategory(type)
+    }
+    setSelectedCalendarResourceId(resource.id)
+    markRecentlyViewed(resource.id)
+  }
+
+  function openDescriptionPopup(resource) {
+    if (!resource) return
+    setDescriptionPopupResource(resource)
+  }
 
   const selectedCalendarResource = useMemo(() => {
     return filteredResources.find((resource) => resource.id === selectedCalendarResourceId) || null
@@ -604,26 +712,31 @@ export default function Catalogue() {
 
   return (
     <div
+      className="relative isolate w-full min-w-0 overflow-hidden"
       style={{
         display: 'flex',
         minHeight: 'calc(100vh - 4rem)',
         backgroundColor: '#f3f4f6',
         width: '100%',
         overflowX: 'hidden',
+        position: 'relative',
       }}
     >
+      <TicketParticlesBackground />
+
       {/* SIDEBAR - Like eProduct Dashboard */}
-      <aside style={{
+      <aside className="ticket-enter" style={{
         width: '280px',
-        backgroundColor: '#1e293b',
+        backgroundColor: '#020617',
         color: '#fff',
         display: 'flex',
         flexDirection: 'column',
-        position: 'sticky',
-        top: 0,
-        alignSelf: 'flex-start',
-        height: 'calc(100vh - 4rem)',
-        overflowY: 'auto'
+        position: 'relative',
+        alignSelf: 'stretch',
+        minHeight: 'calc(100vh - 4rem)',
+        overflowY: 'visible',
+        zIndex: 1,
+        animationDelay: '40ms',
       }}>
         {/* Logo / Brand */}
         <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155' }}>
@@ -684,12 +797,6 @@ export default function Catalogue() {
             ))}
           </div>
 
-          {/* Bottom Menu Items */}
-          <div style={{ marginTop: '2rem' }}>
-            <div style={{ padding: '0.5rem 1.5rem', color: '#94a3b8', fontSize: '0.7rem', textTransform: 'uppercase' }}>
-              MANAGEMENT
-            </div>
-          </div>
         </nav>
 
         {/* Footer */}
@@ -702,14 +809,17 @@ export default function Catalogue() {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main style={{ flex: 1, minWidth: 0, padding: '1.5rem' }}>
+      <main className="ticket-enter" style={{ flex: 1, minWidth: 0, padding: '1.5rem', position: 'relative', zIndex: 1, animationDelay: '120ms' }}>
         {/* Header with active category */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div className="ticket-enter" style={{ marginBottom: '1.5rem', animationDelay: '180ms' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
             {resourceCategories.find((category) => category.id === activeCategory)?.label || 'Resources'}
           </h1>
           <p style={{ color: '#6b7280', marginTop: '0.25rem' }}>
             {categoryCounts[activeCategory] || 0} resources available
+          </p>
+          <p style={{ color: '#64748b', marginTop: '0.35rem', fontSize: '0.85rem' }}>
+            {favouriteCount} favourites saved
           </p>
         </div>
 
@@ -720,26 +830,26 @@ export default function Catalogue() {
           gap: '1rem',
           marginBottom: '1.5rem'
         }}>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '220ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Total Resources</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{resources.length}</div>
           </div>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '280ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Active</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#16a34a' }}>{resources.filter(r => r.status === 'ACTIVE').length}</div>
           </div>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '340ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Out of Service</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#dc2626' }}>{resources.filter(r => r.status === 'OUT_OF_SERVICE').length}</div>
           </div>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '400ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Categories</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{resourceCategories.length}</div>
           </div>
         </div>
 
         {/* Filters Bar */}
-        <div style={{
+        <div className="ticket-enter" style={{
           background: '#fff',
           border: '1px solid #e5e7eb',
           borderRadius: '10px',
@@ -748,15 +858,26 @@ export default function Catalogue() {
           display: 'flex',
           gap: '0.75rem',
           flexWrap: 'wrap',
-          alignItems: 'center'
+          alignItems: 'center',
+          animationDelay: '460ms',
         }}>
-          <input
-            type="text"
-            placeholder="Search location..."
-            value={filters.location}
-            onChange={(e) => setFilters((f) => ({ ...f, location: e.target.value }))}
-            style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '6px' }}
-          />
+          <div style={{ display: 'flex', flex: 1, minWidth: '320px', gap: '0.5rem' }}>
+            <select
+              value={filters.searchBy}
+              onChange={(e) => setFilters((f) => ({ ...f, searchBy: e.target.value }))}
+              style={{ width: '120px', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff' }}
+            >
+              <option value="location">Location</option>
+              <option value="name">Name</option>
+            </select>
+            <input
+              type="text"
+              placeholder={filters.searchBy === 'name' ? 'Search name...' : 'Search location...'}
+              value={filters.searchText}
+              onChange={(e) => setFilters((f) => ({ ...f, searchText: e.target.value }))}
+              style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '6px' }}
+            />
+          </div>
           <input
             type="number"
             placeholder="Min capacity"
@@ -774,11 +895,42 @@ export default function Catalogue() {
             <option value="OUT_OF_SERVICE">Out of service</option>
           </select>
           <button
-            onClick={() => setFilters({ location: '', minCapacity: '', status: '' })}
+            onClick={() => setFilters({ searchBy: 'location', searchText: '', minCapacity: '', status: '' })}
             style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer' }}
           >
             Reset
           </button>
+
+          <div style={{ display: 'inline-flex', gap: '0.35rem', marginLeft: 'auto' }}>
+            {[
+              { id: 'ALL', label: 'All' },
+              { id: 'FAVOURITES', label: 'Favourites' },
+              { id: 'AVAILABLE', label: 'Available' },
+              { id: 'CAPACITY', label: 'Capacity' },
+            ].map((mode) => {
+              const isActive = viewMode === mode.id
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setViewMode(mode.id)}
+                  style={{
+                    padding: '0.45rem 0.7rem',
+                    borderRadius: '999px',
+                    border: isActive ? '1px solid #0f172a' : '1px solid #d1d5db',
+                    background: isActive ? '#0f172a' : '#fff',
+                    color: isActive ? '#fff' : '#334155',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {mode.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div style={{
@@ -788,11 +940,12 @@ export default function Catalogue() {
           alignItems: 'start'
         }}>
           {/* Resources Table - Like eProduct orders table */}
-          <div style={{
+          <div className="ticket-enter" style={{
             background: '#fff',
             border: '1px solid #e5e7eb',
             borderRadius: '10px',
-            overflowX: 'auto'
+            overflowX: 'auto',
+            animationDelay: '520ms',
           }}>
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center' }}>Loading resources...</div>
@@ -810,6 +963,7 @@ export default function Catalogue() {
                     {showEquipmentImageColumn ? (
                       <th style={{ textAlign: 'left', padding: '0.75rem' }}>Image</th>
                     ) : null}
+                    <th style={{ textAlign: 'center', padding: '0.75rem', width: '64px' }}>★</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Name</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Location</th>
                     <th style={{ textAlign: 'left', padding: '0.75rem' }}>Capacity</th>
@@ -820,96 +974,187 @@ export default function Catalogue() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredResources.map((resource, idx) => (
-                    <tr key={resource.id} style={{ borderTop: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
-                      {showEquipmentImageColumn ? (
-                        <td style={{ padding: '0.75rem' }}>
-                          {getEquipmentImage(resource) ? (
-                            <img
-                              src={getEquipmentImage(resource)}
-                              alt={`${resource.name || 'Equipment'} thumbnail`}
-                              style={{
+                  {filteredResources.map((resource, idx) => {
+                    const isFavourite = favouriteResourceIdSet.has(String(resource.id))
+                    const isPulsing = favouritePulseResourceId === String(resource.id)
+
+                    return (
+                      <tr
+                        key={resource.id}
+                        className="ticket-enter"
+                        onClick={() => focusResource(resource)}
+                        style={{
+                          borderTop: '1px solid #e5e7eb',
+                          animationDelay: `${idx * 45}ms`,
+                          background: '#fff',
+                          transition: 'background 0.2s ease',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
+                        {showEquipmentImageColumn ? (
+                          <td style={{ padding: '0.75rem' }}>
+                            {getEquipmentImage(resource) ? (
+                              <img
+                                src={getEquipmentImage(resource)}
+                                alt={`${resource.name || 'Equipment'} thumbnail`}
+                                style={{
+                                  width: '48px',
+                                  height: '48px',
+                                  borderRadius: '10px',
+                                  objectFit: 'cover',
+                                  border: '1px solid #dbe4f0',
+                                  background: '#f8fafc',
+                                  display: 'block',
+                                }}
+                              />
+                            ) : (
+                              <div style={{
                                 width: '48px',
                                 height: '48px',
                                 borderRadius: '10px',
-                                objectFit: 'cover',
-                                border: '1px solid #dbe4f0',
+                                border: '1px dashed #cbd5e1',
                                 background: '#f8fafc',
-                                display: 'block',
-                              }}
-                            />
-                          ) : (
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              borderRadius: '10px',
-                              border: '1px dashed #cbd5e1',
-                              background: '#f8fafc',
-                              color: '#94a3b8',
-                              display: 'flex',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.65rem',
+                                lineHeight: 1,
+                                textAlign: 'center',
+                              }}>
+                                No
+                                <br />
+                                image
+                              </div>
+                            )}
+                          </td>
+                        ) : null}
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              toggleFavourite(resource.id)
+                            }}
+                            aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+                            title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              color: '#111827',
+                              width: 'auto',
+                              height: 'auto',
+                              borderRadius: 0,
+                              display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: '0.65rem',
-                              lineHeight: 1,
-                              textAlign: 'center',
-                            }}>
-                              No
-                              <br />
-                              image
-                            </div>
-                          )}
+                              padding: '0.1rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              transform: isPulsing ? 'scale(1.18) rotate(-8deg)' : 'scale(1)',
+                              boxShadow: 'none',
+                            }}
+                          >
+                            <Star
+                              size={20}
+                              strokeWidth={1.7}
+                              style={{
+                                stroke: '#111827',
+                                fill: isFavourite ? '#facc15' : 'transparent',
+                                transition: 'fill 0.2s ease, transform 0.2s ease',
+                                transform: isFavourite ? 'scale(1.03)' : 'scale(1)',
+                              }}
+                            />
+                          </button>
                         </td>
-                      ) : null}
-                      <td style={{ padding: '0.75rem', fontWeight: '500' }}>{resource.name}</td>
-                      <td style={{ padding: '0.75rem' }}>{resource.location}</td>
-                      <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
-                        {resource.availabilityStartDate && resource.availabilityEndDate
-                          ? `${resource.availabilityStartDate} - ${resource.availabilityEndDate}`
-                          : 'Not set'}
-                      </td>
-                      <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
-                        {resource.availabilityStart} - {resource.availabilityEnd}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '20px',
-                          backgroundColor: getStatusMeta(resource.status).color === '#16a34a' ? '#dcfce7' : '#fee2e2',
-                          fontSize: '0.7rem',
-                          fontWeight: '500'
-                        }}>
+                        <td style={{ padding: '0.75rem', fontWeight: '500' }}>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.45rem',
+                              maxWidth: '100%',
+                            }}
+                          >
+                            <span>{resource.name}</span>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openDescriptionPopup(resource)
+                              }}
+                              aria-label={`Show description for ${resource.name || 'resource'}`}
+                              title="Show description"
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#111827',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 0,
+                                cursor: 'pointer',
+                                lineHeight: 0,
+                              }}
+                            >
+                              <ChevronRight size={20} strokeWidth={2} />
+                            </button>
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>{resource.location}</td>
+                        <td style={{ padding: '0.75rem' }}>{resource.capacity}</td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
+                          {resource.availabilityStartDate && resource.availabilityEndDate
+                            ? `${resource.availabilityStartDate} - ${resource.availabilityEndDate}`
+                            : 'Not set'}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
+                          {resource.availabilityStart} - {resource.availabilityEnd}
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
                           <span style={{
-                            width: '0.5rem',
-                            height: '0.5rem',
-                            borderRadius: '50%',
-                            backgroundColor: getStatusMeta(resource.status).color
-                          }} />
-                          {getStatusMeta(resource.status).label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                        <button
-                          onClick={() => navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.id)}&location=${encodeURIComponent(resource.location || '')}&capacity=${encodeURIComponent(resource.capacity ?? '')}&returnTo=${encodeURIComponent('/resources')}`)}
-                          disabled={resource.status !== 'ACTIVE'}
-                          style={{
-                            padding: '0.3rem 0.75rem',
-                            borderRadius: '6px',
-                            border: '1px solid #d1d5db',
-                            backgroundColor: resource.status === 'ACTIVE' ? '#3b82f6' : '#e5e7eb',
-                            color: resource.status === 'ACTIVE' ? '#fff' : '#9ca3af',
-                            cursor: resource.status === 'ACTIVE' ? 'pointer' : 'not-allowed'
-                          }}
-                        >
-                          Book ✏️
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '20px',
+                            backgroundColor: getStatusMeta(resource.status).color === '#16a34a' ? '#dcfce7' : '#fee2e2',
+                            fontSize: '0.7rem',
+                            fontWeight: '500'
+                          }}>
+                            <span style={{
+                              width: '0.5rem',
+                              height: '0.5rem',
+                              borderRadius: '50%',
+                              backgroundColor: getStatusMeta(resource.status).color
+                            }} />
+                            {getStatusMeta(resource.status).label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              markRecentlyViewed(resource.id)
+                              navigate(`/bookings?tab=new&resourceId=${encodeURIComponent(resource.id)}&location=${encodeURIComponent(resource.location || '')}&capacity=${encodeURIComponent(resource.capacity ?? '')}&returnTo=${encodeURIComponent('/resources')}`)
+                            }}
+                            disabled={resource.status !== 'ACTIVE'}
+                            style={{
+                              padding: '0.3rem 0.75rem',
+                              borderRadius: '6px',
+                              border: '1px solid #d1d5db',
+                              backgroundColor: resource.status === 'ACTIVE' ? '#3b82f6' : '#e5e7eb',
+                              color: resource.status === 'ACTIVE' ? '#fff' : '#9ca3af',
+                              cursor: resource.status === 'ACTIVE' ? 'pointer' : 'not-allowed'
+                            }}
+                          >
+                            Book ✏️
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -934,14 +1179,15 @@ export default function Catalogue() {
           </div>
 
           {/* Booking calendar */}
-          <aside style={{
+          <aside className="ticket-enter" style={{
             background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
             border: '1px solid #e5e7eb',
             borderRadius: '14px',
             padding: '0.85rem',
             boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
             position: 'sticky',
-            top: '1rem'
+            top: '1rem',
+            animationDelay: '600ms',
           }}>
             <div style={{
               display: 'flex',
@@ -1009,19 +1255,21 @@ export default function Catalogue() {
             </div>
 
             {selectedCalendarResource ? (
-              <p style={{ margin: '0 0 0.65rem', color: '#475569', fontSize: '0.74rem', lineHeight: 1.4 }}>
-                <strong>{selectedCalendarResource.name}</strong>
-                <br />
-                {selectedCalendarResource.availabilityStartDate && selectedCalendarResource.availabilityEndDate
-                  ? `${selectedCalendarResource.availabilityStartDate} to ${selectedCalendarResource.availabilityEndDate}`
-                  : 'No date range set'}
-                {(selectedCalendarResource.availabilityStart && selectedCalendarResource.availabilityEnd) ? (
-                  <>
-                    <br />
-                    {selectedCalendarResource.availabilityStart} - {selectedCalendarResource.availabilityEnd}
-                  </>
-                ) : null}
-              </p>
+              <div style={{ margin: '0 0 0.65rem', color: '#475569', fontSize: '0.74rem', lineHeight: 1.4 }}>
+                <p style={{ margin: 0 }}>
+                  <strong>{selectedCalendarResource.name}</strong>
+                  <br />
+                  {selectedCalendarResource.availabilityStartDate && selectedCalendarResource.availabilityEndDate
+                    ? `${selectedCalendarResource.availabilityStartDate} to ${selectedCalendarResource.availabilityEndDate}`
+                    : 'No date range set'}
+                  {(selectedCalendarResource.availabilityStart && selectedCalendarResource.availabilityEnd) ? (
+                    <>
+                      <br />
+                      {selectedCalendarResource.availabilityStart} - {selectedCalendarResource.availabilityEnd}
+                    </>
+                  ) : null}
+                </p>
+              </div>
             ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
@@ -1235,6 +1483,61 @@ export default function Catalogue() {
           </aside>
         </div>
       </main>
+
+      {descriptionPopupResource ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDescriptionPopupResource(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.48)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            zIndex: 40,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(520px, 100%)',
+              background: '#ffffff',
+              borderRadius: '14px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 20px 45px rgba(15, 23, 42, 0.28)',
+              padding: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                {descriptionPopupResource.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDescriptionPopupResource(null)}
+                style={{
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  padding: '0.35rem 0.55rem',
+                  cursor: 'pointer',
+                  color: '#334155',
+                  fontSize: '0.8rem',
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <p style={{ margin: '0.75rem 0 0', color: '#334155', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              {String(descriptionPopupResource.description || '').trim() || 'No description provided.'}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
