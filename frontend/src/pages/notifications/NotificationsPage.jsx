@@ -1,9 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { apiGet, apiSend } from '../../services/apiClient'
+import { resolveNotificationTarget } from '../../utils/notificationRoutes'
 
 export default function NotificationsPage() {
+  const { roles } = useAuth()
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [busyNotificationId, setBusyNotificationId] = useState(null)
+
+  const filteredNotifications = useMemo(() => {
+    if (activeFilter === 'unread') {
+      return notifications.filter((notification) => !notification?.read)
+    }
+    return notifications
+  }, [activeFilter, notifications])
 
   useEffect(() => {
     loadNotifications()
@@ -31,6 +45,20 @@ export default function NotificationsPage() {
     }
   }
 
+  const handleNotificationClick = async (notification) => {
+    const target = resolveNotificationTarget(notification, roles)
+
+    try {
+      if (!notification?.read) {
+        setBusyNotificationId(notification.id)
+        await markAsRead(notification.id)
+      }
+    } finally {
+      setBusyNotificationId(null)
+      navigate(target)
+    }
+  }
+
   return (
     <section className="space-y-6">
       <div>
@@ -40,16 +68,47 @@ export default function NotificationsPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveFilter('all')}
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activeFilter === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50'}`}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveFilter('unread')}
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activeFilter === 'unread' ? 'bg-sky-600 text-white shadow-sm' : 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50'}`}
+        >
+          Unread
+        </button>
+      </div>
+
       {loading ? (
         <div className="rounded-lg bg-white p-6 shadow-sm text-gray-500">Loading notifications...</div>
-      ) : notifications.length === 0 ? (
-        <div className="rounded-lg bg-white p-6 shadow-sm text-gray-500">No notifications yet.</div>
+      ) : filteredNotifications.length === 0 ? (
+        <div className="rounded-lg bg-white p-6 shadow-sm text-gray-500">
+          {activeFilter === 'unread' ? 'No unread notifications.' : 'No notifications yet.'}
+        </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((notification) => (
+          {filteredNotifications.map((notification) => {
+            const isBusy = busyNotificationId === notification.id
+
+            return (
             <article
               key={notification.id}
-              className={`rounded-xl border p-4 shadow-sm ${notification.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleNotificationClick(notification)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  handleNotificationClick(notification)
+                }
+              }}
+              className={`cursor-pointer rounded-xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${notification.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -73,18 +132,29 @@ export default function NotificationsPage() {
                     </p>
                   )}
                 </div>
-                {!notification.read && (
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {isBusy && (
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                      Opening...
+                    </span>
+                  )}
+                  {!notification.read && (
                   <button
                     type="button"
-                    onClick={() => markAsRead(notification.id)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      markAsRead(notification.id)
+                    }}
                     className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
                   >
                     Mark Read
                   </button>
-                )}
+                  )}
+                </div>
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
       )}
     </section>
