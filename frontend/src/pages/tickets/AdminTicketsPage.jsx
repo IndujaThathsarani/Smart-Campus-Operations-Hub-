@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Ban, ClipboardList, Eye, ImageIcon, MessageSquareText, Pencil, Save, Send, Ticket, Trash2, User, Users, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
+import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
 import { useAuth } from '../../context/AuthContext'
 import { useActionToasts } from '../../hooks/useActionToasts'
@@ -819,8 +820,9 @@ export default function AdminTicketsPage() {
         </nav>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100">
-        <div className="border-b border-slate-200 bg-white px-4 py-4">
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100">
+        <TicketParticlesBackground />
+        <div className="relative z-10 border-b border-slate-200 bg-white px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
             Admin tickets
           </p>
@@ -834,7 +836,7 @@ export default function AdminTicketsPage() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-3 pb-4 pt-3">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-3 pb-4 pt-3">
           {activeTab === 'view_all' && (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
               {viewAllCards.map((card) => {
