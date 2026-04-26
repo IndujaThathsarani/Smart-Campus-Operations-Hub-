@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class NotificationService {
@@ -14,7 +15,20 @@ public class NotificationService {
     private NotificationRepository notificationRepository;
 
     public Notification createNotification(String userId, String title, String message, String type, String bookingId) {
-        Notification notification = new Notification(userId, title, message, type, bookingId);
+        return createNotification(userId, title, message, type, "BOOKING", bookingId, null, null);
+    }
+
+    public Notification createNotification(
+            String userId,
+            String title,
+            String message,
+            String type,
+            String entityType,
+            String entityId,
+            String actorId,
+            Map<String, Object> metadata
+    ) {
+        Notification notification = new Notification(userId, title, message, type, entityType, entityId, actorId, metadata);
         return notificationRepository.save(notification);
     }
 

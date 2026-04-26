@@ -35,7 +35,7 @@ export default function NotificationsPage() {
       <div>
         <h1 className="page-title">Notifications</h1>
         <p className="page-lead">
-          Booking decisions, waitlist promotions, ticket updates, and new comments will appear here.
+          Booking changes, ticket updates, account changes, and new comments will appear here.
         </p>
       </div>
 
@@ -64,6 +64,13 @@ export default function NotificationsPage() {
                   <p className="mt-2 text-xs text-gray-400">
                     {notification.type} · {new Date(notification.createdAt).toLocaleString()}
                   </p>
+                  {(notification.entityType || notification.entityId) && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {notification.entityType && <span>{notification.entityType}</span>}
+                      {notification.entityType && notification.entityId && <span> · </span>}
+                      {notification.entityId && <span>{notification.entityId}</span>}
+                    </p>
+                  )}
                 </div>
                 {!notification.read && (
                   <button

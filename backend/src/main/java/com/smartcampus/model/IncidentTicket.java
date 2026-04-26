@@ -49,6 +49,10 @@ public class IncidentTicket {
 
     private String location;
 
+    private String createdByUserId;
+
+    private String createdByUserName;
+
     private Category category;
 
     private String description;
@@ -113,6 +117,22 @@ public class IncidentTicket {
 
     public void setLocation(String location) {
         this.location = location;
+    }
+
+    public String getCreatedByUserId() {
+        return createdByUserId;
+    }
+
+    public void setCreatedByUserId(String createdByUserId) {
+        this.createdByUserId = createdByUserId;
+    }
+
+    public String getCreatedByUserName() {
+        return createdByUserName;
+    }
+
+    public void setCreatedByUserName(String createdByUserName) {
+        this.createdByUserName = createdByUserName;
     }
 
     public Category getCategory() {

@@ -3,7 +3,9 @@ package com.smartcampus.service;
 import com.smartcampus.model.IncidentTicket;
 import com.smartcampus.model.Resource;
 import com.smartcampus.model.TicketComment;
+import com.smartcampus.model.User;
 import com.smartcampus.repository.IncidentTicketRepository;
+import com.smartcampus.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
@@ -44,12 +46,23 @@ public class IncidentTicketService {
 
     private final MongoTemplate mongoTemplate;
 
+    private final NotificationService notificationService;
+
+    private final UserRepository userRepository;
+
     @Value("${app.upload.dir:uploads/tickets}")
     private String uploadDir;
 
-    public IncidentTicketService(IncidentTicketRepository incidentTicketRepository, MongoTemplate mongoTemplate) {
+    public IncidentTicketService(
+            IncidentTicketRepository incidentTicketRepository,
+            MongoTemplate mongoTemplate,
+            NotificationService notificationService,
+            UserRepository userRepository
+    ) {
         this.incidentTicketRepository = incidentTicketRepository;
         this.mongoTemplate = mongoTemplate;
+        this.notificationService = notificationService;
+        this.userRepository = userRepository;
     }
 
     // Create incident ticket with attachments and optional resource linking (validates and sets resourceId)
@@ -57,6 +70,8 @@ public class IncidentTicketService {
             String resourceIdRaw,
             String subjectRaw,
             String location,
+            String createdByUserIdRaw,
+            String createdByUserNameRaw,
             String categoryRaw,
             String priorityRaw,
             String description,
@@ -125,6 +140,8 @@ public class IncidentTicketService {
         ticket.setResourceId(resourceId);
         ticket.setSubject(subject);
         ticket.setLocation(loc);
+        ticket.setCreatedByUserId(blankToNull(createdByUserIdRaw));
+        ticket.setCreatedByUserName(blankToNull(createdByUserNameRaw));
         ticket.setCategory(category);
         ticket.setPriority(priority);
         ticket.setDescription(description.trim());
@@ -165,7 +182,22 @@ public class IncidentTicketService {
         }
 
         saved.setAttachmentFileNames(storedNames);
-        return incidentTicketRepository.save(saved);
+        IncidentTicket persisted = incidentTicketRepository.save(saved);
+
+        if (persisted.getCreatedByUserId() != null) {
+            notificationService.createNotification(
+                    persisted.getCreatedByUserId(),
+                    "Ticket submitted",
+                    "Your ticket " + persisted.getTicketNumber() + " has been submitted.",
+                    "TICKET_CREATED",
+                    "TICKET",
+                    persisted.getId(),
+                    persisted.getCreatedByUserId(),
+                    ticketMetadata(persisted)
+            );
+        }
+
+        return persisted;
     }
 
     public List<IncidentTicket> findAllFiltered(String statusRaw, String priorityRaw, String categoryRaw) {
@@ -251,7 +283,26 @@ public class IncidentTicketService {
                 ticket.setResolvedAt(now);
             }
         }
-        return incidentTicketRepository.save(ticket);
+        IncidentTicket saved = incidentTicketRepository.save(ticket);
+
+        if (saved.getCreatedByUserId() != null) {
+            String message = "Your ticket " + saved.getTicketNumber() + " status changed to " + saved.getStatus() + ".";
+            if (saved.getStatus() == IncidentTicket.Status.REJECTED && rejectReason != null) {
+                message += " Reason: " + rejectReason;
+            }
+            notificationService.createNotification(
+                    saved.getCreatedByUserId(),
+                    "Ticket status updated",
+                    message,
+                    "TICKET_STATUS",
+                    "TICKET",
+                    saved.getId(),
+                    null,
+                    ticketMetadata(saved)
+            );
+        }
+
+        return saved;
     }
 
     public IncidentTicket updateAssignment(String ticketId, String assignedToRaw) {
@@ -268,7 +319,36 @@ public class IncidentTicketService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned to must be at most 200 characters");
         }
         ticket.setAssignedTo(assigned);
-        return incidentTicketRepository.save(ticket);
+        IncidentTicket saved = incidentTicketRepository.save(ticket);
+
+        User assignee = resolveAssignee(assigned);
+        if (assignee != null) {
+            notificationService.createNotification(
+                    assignee.getId(),
+                    "Ticket assigned to you",
+                    "Ticket " + saved.getTicketNumber() + " was assigned to you.",
+                    "TICKET_ASSIGNED",
+                    "TICKET",
+                    saved.getId(),
+                    null,
+                    ticketMetadata(saved)
+            );
+        }
+
+        if (saved.getCreatedByUserId() != null && (assignee == null || !saved.getCreatedByUserId().equals(assignee.getId()))) {
+            notificationService.createNotification(
+                    saved.getCreatedByUserId(),
+                    "Ticket assigned",
+                    "Your ticket " + saved.getTicketNumber() + " has been assigned to " + (assigned == null ? "a technician" : assigned) + ".",
+                    "TICKET_ASSIGNED",
+                    "TICKET",
+                    saved.getId(),
+                    null,
+                    ticketMetadata(saved)
+            );
+        }
+
+        return saved;
     }
 
     public IncidentTicket addComment(
@@ -312,7 +392,9 @@ public class IncidentTicketService {
         c.setUpdatedAt(now);
         c.setHidden(false);
         ticket.getComments().add(c);
-        return incidentTicketRepository.save(ticket);
+        IncidentTicket saved = incidentTicketRepository.save(ticket);
+        notifyCommentParticipants(saved, ownerId, author, body);
+        return saved;
     }
 
     public IncidentTicket updateComment(String ticketId, String commentId, String bodyRaw, String ownerIdRaw) {
@@ -394,6 +476,90 @@ public class IncidentTicketService {
         if (!ownerId.equals(blankToNull(comment.getOwnerId()))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the comment owner can modify this comment");
         }
+    }
+
+    private void notifyCommentParticipants(IncidentTicket ticket, String actorId, String author, String body) {
+        if (ticket.getCreatedByUserId() != null && !ticket.getCreatedByUserId().equals(actorId)) {
+            notificationService.createNotification(
+                    ticket.getCreatedByUserId(),
+                    "New ticket comment",
+                    (author == null ? "A staff member" : author) + " commented on ticket " + ticket.getTicketNumber() + ".",
+                    "TICKET_COMMENT",
+                    "TICKET",
+                    ticket.getId(),
+                    actorId,
+                    commentMetadata(ticket, body)
+            );
+        }
+
+        User assignee = resolveAssignee(ticket.getAssignedTo());
+        if (assignee != null && !assignee.getId().equals(actorId) && !assignee.getId().equals(ticket.getCreatedByUserId())) {
+            notificationService.createNotification(
+                    assignee.getId(),
+                    "New comment on assigned ticket",
+                    (author == null ? "Someone" : author) + " commented on ticket " + ticket.getTicketNumber() + ".",
+                    "TICKET_COMMENT",
+                    "TICKET",
+                    ticket.getId(),
+                    actorId,
+                    commentMetadata(ticket, body)
+            );
+        }
+    }
+
+    private User resolveAssignee(String assignedToRaw) {
+        String assignedTo = blankToNull(assignedToRaw);
+        if (assignedTo == null) {
+            return null;
+        }
+
+        for (User user : userRepository.findAll()) {
+            if (!user.isActive() || user.getRoles() == null) {
+                continue;
+            }
+
+            boolean staff = user.getRoles().stream().anyMatch(role ->
+                    role == com.smartcampus.model.Role.ROLE_TECHNICIAN
+                            || role == com.smartcampus.model.Role.ROLE_ADMIN
+                            || role == com.smartcampus.model.Role.ROLE_SYSTEM_ADMIN
+            );
+            if (!staff) {
+                continue;
+            }
+
+            String name = blankToNull(user.getName());
+            String email = blankToNull(user.getEmail());
+            String id = blankToNull(user.getId());
+            String label = name != null && email != null ? name + " (" + email + ")" : name != null ? name : email != null ? email : id;
+
+            if (assignedTo.equalsIgnoreCase(id)
+                    || assignedTo.equalsIgnoreCase(email)
+                    || assignedTo.equalsIgnoreCase(name)
+                    || assignedTo.equalsIgnoreCase(label)
+                    || (email != null && assignedTo.toLowerCase().contains(email.toLowerCase()))
+                    || (name != null && assignedTo.toLowerCase().contains(name.toLowerCase()))) {
+                return user;
+            }
+        }
+
+        return null;
+    }
+
+    private java.util.Map<String, Object> ticketMetadata(IncidentTicket ticket) {
+        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("ticketNumber", ticket.getTicketNumber());
+        metadata.put("status", ticket.getStatus() != null ? ticket.getStatus().name() : "");
+        metadata.put("priority", ticket.getPriority() != null ? ticket.getPriority().name() : "");
+        if (ticket.getAssignedTo() != null) {
+            metadata.put("assignedTo", ticket.getAssignedTo());
+        }
+        return metadata;
+    }
+
+    private java.util.Map<String, Object> commentMetadata(IncidentTicket ticket, String body) {
+        java.util.Map<String, Object> metadata = ticketMetadata(ticket);
+        metadata.put("excerpt", body.length() > 120 ? body.substring(0, 120) + "..." : body);
+        return metadata;
     }
 
     public void deleteById(String ticketId) {

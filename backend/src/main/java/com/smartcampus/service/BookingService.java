@@ -72,6 +72,17 @@ public class BookingService {
                 "WAITLISTED",
                 savedBooking.getId()
             );
+        } else {
+            notificationService.createNotification(
+                userId,
+                "Booking request received",
+                "Your booking request for resource " + savedBooking.getResourceId() + " is pending review.",
+                "BOOKING_REQUESTED",
+                "BOOKING",
+                savedBooking.getId(),
+                userId,
+                createBookingMetadata(savedBooking, null)
+            );
         }
 
         return savedBooking;
@@ -172,7 +183,18 @@ public class BookingService {
         
         booking.setStatus(BookingStatus.APPROVED);
         booking.setAdminReason(adminReason);
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+        notificationService.createNotification(
+            saved.getUserId(),
+            "Booking approved",
+            "Your booking request for resource " + saved.getResourceId() + " has been approved.",
+            "APPROVED",
+            "BOOKING",
+            saved.getId(),
+            null,
+            createBookingMetadata(saved, adminReason)
+        );
+        return saved;
     }
     
     public Booking rejectBooking(String bookingId, String adminReason) {
@@ -185,7 +207,18 @@ public class BookingService {
         
         booking.setStatus(BookingStatus.REJECTED);
         booking.setAdminReason(adminReason);
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+        notificationService.createNotification(
+            saved.getUserId(),
+            "Booking rejected",
+            "Your booking request for resource " + saved.getResourceId() + " was rejected." + (adminReason == null ? "" : " Reason: " + adminReason),
+            "REJECTED",
+            "BOOKING",
+            saved.getId(),
+            null,
+            createBookingMetadata(saved, adminReason)
+        );
+        return saved;
     }
     
     public Booking cancelBooking(String bookingId) {
@@ -198,6 +231,16 @@ public class BookingService {
         
         booking.setStatus(BookingStatus.CANCELLED);
         Booking cancelledBooking = bookingRepository.save(booking);
+        notificationService.createNotification(
+            cancelledBooking.getUserId(),
+            "Booking cancelled",
+            "Your booking for resource " + cancelledBooking.getResourceId() + " has been cancelled.",
+            "CANCELLED",
+            "BOOKING",
+            cancelledBooking.getId(),
+            cancelledBooking.getUserId(),
+            createBookingMetadata(cancelledBooking, null)
+        );
         promoteNextWaitlistedBooking(cancelledBooking);
         return cancelledBooking;
     }
@@ -267,4 +310,19 @@ public void validateDuration(LocalDateTime startTime, LocalDateTime endTime) {
         throw new IllegalArgumentException("Booking must be at least 1 hour");
     }
 }
+
+    private java.util.Map<String, Object> createBookingMetadata(Booking booking, String reason) {
+        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("resourceId", booking.getResourceId());
+        if (booking.getLocation() != null) {
+            metadata.put("location", booking.getLocation());
+        }
+        if (booking.getStatus() != null) {
+            metadata.put("status", booking.getStatus().name());
+        }
+        if (reason != null && !reason.isBlank()) {
+            metadata.put("reason", reason);
+        }
+        return metadata;
+    }
 }

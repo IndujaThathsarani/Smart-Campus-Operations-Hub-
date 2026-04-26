@@ -5,12 +5,16 @@ import com.smartcampus.dto.UserStatusUpdateRequest;
 import com.smartcampus.model.Role;
 import com.smartcampus.model.User;
 import com.smartcampus.repository.UserRepository;
+import com.smartcampus.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -18,9 +22,11 @@ import java.util.Set;
 public class SystemAdminController {
 
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public SystemAdminController(UserRepository userRepository) {
+    public SystemAdminController(UserRepository userRepository, NotificationService notificationService) {
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/users")
@@ -31,7 +37,8 @@ public class SystemAdminController {
     @PatchMapping("/users/{id}/roles")
     public User updateUserRoles(
             @PathVariable String id,
-            @RequestBody RoleUpdateRequest request
+            @RequestBody RoleUpdateRequest request,
+            Authentication authentication
     ) {
         if (request.getRoles() == null || request.getRoles().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one role is required");
@@ -56,20 +63,53 @@ public class SystemAdminController {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        Set<Role> previousRoles = new LinkedHashSet<>(user.getRoles());
+
         user.setRoles(mappedRoles);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        notificationService.createNotification(
+            saved.getId(),
+            "Access level updated",
+            "Your account roles changed from " + previousRoles + " to " + mappedRoles + ".",
+            "ACCOUNT_ROLE_CHANGED",
+            "USER",
+            saved.getId(),
+            getCurrentUserId(authentication),
+            Map.of(
+                "previousRoles", previousRoles.toString(),
+                "newRoles", mappedRoles.toString()
+            )
+        );
+        return saved;
     }
 
     @PatchMapping("/users/{id}/status")
     public User updateUserStatus(
             @PathVariable String id,
-            @RequestBody UserStatusUpdateRequest request
+            @RequestBody UserStatusUpdateRequest request,
+            Authentication authentication
     ) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        boolean previousActive = user.isActive();
+
         user.setActive(request.isActive());
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        notificationService.createNotification(
+            saved.getId(),
+            "Account status updated",
+            "Your account is now " + (saved.isActive() ? "active" : "inactive") + ".",
+            "ACCOUNT_STATUS_CHANGED",
+            "USER",
+            saved.getId(),
+            getCurrentUserId(authentication),
+            Map.of(
+                "previousActive", String.valueOf(previousActive),
+                "newActive", String.valueOf(saved.isActive())
+            )
+        );
+        return saved;
     }
 
     @GetMapping("/stats")
@@ -90,4 +130,24 @@ public java.util.Map<String, Long> getSystemAdminStats() {
             "systemAdmins", systemAdmins
     );
 }
+
+    private String getCurrentUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        String email = null;
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof OAuth2User oAuth2User) {
+            email = oAuth2User.getAttribute("email");
+        }
+        if (email == null || email.isBlank()) {
+            email = authentication.getName();
+        }
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+
+        return userRepository.findByEmail(email).map(User::getId).orElse(null);
+    }
 }

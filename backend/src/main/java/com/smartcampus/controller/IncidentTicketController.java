@@ -91,6 +91,7 @@ public class IncidentTicketController {
             @RequestParam(value = "resourceId", required = false) String resourceId,
             @RequestParam("subject") String subject,
             @RequestParam("location") String location,
+            Authentication authentication,
             @RequestParam("category") String category,
             @RequestParam("priority") String priority,
             @RequestParam("description") String description,
@@ -98,10 +99,13 @@ public class IncidentTicketController {
             @RequestParam(value = "contactPhone", required = false) String contactPhone,
             @RequestParam(value = "files", required = false) MultipartFile[] files
     ) {
+        User currentUser = requireCurrentUser(authentication);
         IncidentTicket created = incidentTicketService.createWithAttachments(
                 resourceId,
                 subject,
                 location,
+            currentUser.getId(),
+            currentUser.getName(),
                 category,
                 priority,
                 description,
