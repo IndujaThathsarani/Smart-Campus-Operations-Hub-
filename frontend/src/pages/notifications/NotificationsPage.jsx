@@ -25,6 +25,7 @@ export default function NotificationsPage() {
     try {
       await apiSend(`/api/notifications/${notificationId}/read`, { method: 'PUT' })
       loadNotifications()
+      window.dispatchEvent(new Event('notifications:refresh'))
     } catch (error) {
       console.error('Failed to mark notification as read:', error)
     }

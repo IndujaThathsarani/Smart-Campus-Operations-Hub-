@@ -9,7 +9,6 @@ const NAVBAR_LINKS = {
     { to: '/resources', label: 'Resources' },
     { to: '/tickets', label: 'Tickets' },
     { to: '/bookings', label: 'Bookings' },
-    { to: '/notifications', label: 'Notifications' },
   ],
   technician: [
     { to: '/', label: 'Home', end: true },
@@ -77,10 +76,16 @@ export default function RoleNavbar({ variant = 'user' }) {
 
     loadUnreadCount()
     const timerId = window.setInterval(loadUnreadCount, 60000)
+    const handleNotificationRefresh = () => {
+      loadUnreadCount()
+    }
+
+    window.addEventListener('notifications:refresh', handleNotificationRefresh)
 
     return () => {
       isMounted = false
       window.clearInterval(timerId)
+      window.removeEventListener('notifications:refresh', handleNotificationRefresh)
     }
   }, [isAuthenticated, location.pathname])
 
