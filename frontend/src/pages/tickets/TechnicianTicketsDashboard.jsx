@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Eye, ImageIcon, MessageSquareText, Pencil, Ticket, Trash2, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
+import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import { useAuth } from '../../context/AuthContext'
 import { useActionToasts } from '../../hooks/useActionToasts'
 import { API_BASE_URL, apiGet, apiSend } from '../../services/apiClient'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
-import TicketSlaBadges from '../../components/TicketSlaBadges'
 
 const STATUS_TABS = ['ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
@@ -437,22 +437,24 @@ export default function TechnicianTicketsDashboard() {
   )
 
   return (
-    <section className="relative w-full max-w-none">
-      <ActionToasts toasts={toasts} onDismiss={dismissToast} />
-      <header className="mb-5 flex flex-col gap-3">
-        <div className="min-w-0 flex-1 sm:pr-4">
-          <p className="mb-1.5 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
-            Technician dashboard
-          </p>
-          <h1 className="inline-flex items-center gap-2 text-3xl font-semibold text-slate-900">
-            <Wrench className="h-7 w-7 text-sky-700" strokeWidth={2.2} />
-            Maintenance ticket overview
-          </h1>
-        </div>
-      </header>
+    <section className="relative isolate w-full max-w-none overflow-hidden">
+      <TicketParticlesBackground />
+      <div className="relative z-10">
+        <ActionToasts toasts={toasts} onDismiss={dismissToast} />
+        <header className="mb-5 flex flex-col gap-3">
+          <div className="min-w-0 flex-1 sm:pr-4">
+            <p className="mb-1.5 text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
+              Technician dashboard
+            </p>
+            <h1 className="inline-flex items-center gap-2 text-3xl font-semibold text-slate-900">
+              <Wrench className="h-7 w-7 text-sky-700" strokeWidth={2.2} />
+              Maintenance ticket overview
+            </h1>
+          </div>
+        </header>
 
-      <div className="space-y-4">
-        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-4">
+          <div className="mx-auto grid w-full max-w-6xl gap-4 md:grid-cols-2 xl:grid-cols-4">
           {STATUS_TABS.map((status) => {
             const isActive = activeStatus === status
             const label = status === 'ASSIGNED' ? 'Assigned tickets' : formatEnum(status)
@@ -466,11 +468,11 @@ export default function TechnicianTicketsDashboard() {
                 key={status}
                 type="button"
                 onClick={() => setActiveStatus(status)}
-                className={`rounded-lg border px-4 py-2.5 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
-                  isActive
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                    : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
-                }`}
+                  className={`w-full rounded-lg border px-4 py-2.5 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                    isActive
+                      ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                      : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
               >
                 <p
                   className={`text-xs font-medium uppercase tracking-[0.16em] ${
@@ -487,11 +489,11 @@ export default function TechnicianTicketsDashboard() {
           })}
         </div>
 
-        <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:border-sky-200 hover:shadow-lg">
+          <div className="rounded-md border border-slate-200/70 bg-white/40 p-5 shadow-sm backdrop-blur-[1px] transition duration-200 hover:border-sky-200 hover:bg-white/45 hover:shadow-lg">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Work queue</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-xl font-semibold text-slate-900">Work queue</h2>
+                <p className="mt-1 text-base text-slate-500">
                   {activeStatus === 'ASSIGNED'
                     ? `Tickets assigned to ${technicianLabel || 'you'}`
                     : `Tickets currently in ${formatEnum(activeStatus).toLowerCase()} state.`}
@@ -535,7 +537,7 @@ export default function TechnicianTicketsDashboard() {
                   return (
                     <li
                       key={ticket.id}
-                      className="ticket-enter mx-auto w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[74%]"
+                      className="ticket-enter mx-auto w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)] lg:w-[62%]"
                       style={{ animationDelay: `${index * 80}ms` }}
                     >
                       <div className="flex items-center gap-4">
@@ -856,6 +858,7 @@ export default function TechnicianTicketsDashboard() {
             )}
           </div>
         </div>
+      </div>
     </section>
   )
 }
