@@ -465,59 +465,60 @@ export default function TicketsListPage() {
   const submitting = submitPhase === 'loading'
 
   return (
-    <section className="relative w-full min-w-0 overflow-hidden">
+    <section className="relative isolate w-full min-w-0 overflow-hidden">
       <TicketParticlesBackground />
-      <ActionToasts toasts={toasts} onDismiss={dismissToast} />
-      <header className="mb-3 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="h-5" aria-hidden="true" />
-        </div>
-      </header>
+      <div className="relative z-10">
+        <ActionToasts toasts={toasts} onDismiss={dismissToast} />
+        <header className="mb-3 flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="h-5" aria-hidden="true" />
+          </div>
+        </header>
 
-      <div className="mb-3 grid max-w-3xl gap-3 sm:mx-auto sm:grid-cols-2">
-        {TICKET_FILTERS.map((filter) => {
-          const isActive = activeFilter === filter.id
-          const count = filter.id === 'CREATE' ? null : filterCount(tickets, filter.id)
-          const Icon = filter.icon
+        <div className="mb-3 grid max-w-3xl gap-3 sm:mx-auto sm:grid-cols-2">
+          {TICKET_FILTERS.map((filter) => {
+            const isActive = activeFilter === filter.id
+            const count = filter.id === 'CREATE' ? null : filterCount(tickets, filter.id)
+            const Icon = filter.icon
 
-          return (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => setActiveFilter(filter.id)}
-              className={`rounded-lg border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
-                isActive
-                  ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                  : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p
-                    className={`text-xs font-medium uppercase tracking-[0.16em] ${
-                      isActive ? 'text-slate-200' : 'text-slate-500'
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setActiveFilter(filter.id)}
+                className={`rounded-lg border px-4 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                  isActive
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                    : 'border-gray-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p
+                      className={`text-xs font-medium uppercase tracking-[0.16em] ${
+                        isActive ? 'text-slate-200' : 'text-slate-500'
+                      }`}
+                    >
+                      {filter.label}
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                      isActive
+                        ? 'border-white/20 bg-white/10 text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-700'
                     }`}
                   >
-                    {filter.label}
-                  </p>
+                    <Icon className="h-5 w-5" strokeWidth={2.2} />
+                  </span>
                 </div>
-                <span
-                  className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
-                    isActive
-                      ? 'border-white/20 bg-white/10 text-white'
-                      : 'border-slate-200 bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={2.2} />
-                </span>
-              </div>
-              <p className="mt-2 text-3xl font-semibold">
-                {filter.id === 'CREATE' ? '+' : count}
-              </p>
-            </button>
-          )
-        })}
-      </div>
+                <p className="mt-2 text-3xl font-semibold">
+                  {filter.id === 'CREATE' ? '+' : count}
+                </p>
+              </button>
+            )
+          })}
+        </div>
 
       {showCreateForm ? (
         <div className="mb-4 w-full rounded-2xl border-2 border-slate-950 bg-white px-4 py-2.5 shadow-[0_16px_32px_rgba(2,6,23,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_rgba(2,6,23,0.14)] sm:px-5 lg:mx-auto lg:w-[70%]">
@@ -1040,6 +1041,7 @@ export default function TicketsListPage() {
           )}
         </>
       )}
+      </div>
     </section>
   )
 }

@@ -71,7 +71,7 @@ export default function TicketParticlesBackground() {
   return (
     <Particles
       id="ticket-particles"
-      className="pointer-events-none absolute inset-0 opacity-80"
+      className="pointer-events-none absolute inset-0 z-0 opacity-80"
       options={options}
     />
   )
