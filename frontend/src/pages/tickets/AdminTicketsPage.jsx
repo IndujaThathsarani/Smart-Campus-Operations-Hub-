@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Ban, ClipboardList, Eye, ImageIcon, MessageSquareText, Pencil, Save, Send, Ticket, Trash2, User, Users, Wrench } from 'lucide-react'
 import ActionToasts from '../../components/ActionToasts'
-import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import TicketSlaCountdown from '../../components/TicketSlaCountdown'
 import TicketWorkflowBar from '../../components/TicketWorkflowBar'
 import { useAuth } from '../../context/AuthContext'
@@ -32,48 +31,6 @@ function formatDate(iso) {
   } catch {
     return String(iso)
   }
-}
-
-function priorityClasses(priority) {
-  switch ((priority || '').toLowerCase()) {
-    case 'urgent':
-      return 'bg-red-50 text-red-700'
-    case 'high':
-      return 'bg-orange-50 text-orange-700'
-    case 'medium':
-      return 'bg-blue-50 text-blue-700'
-    case 'low':
-      return 'bg-emerald-50 text-emerald-700'
-    default:
-      return 'bg-gray-100 text-gray-600'
-  }
-}
-
-function statusClasses(status) {
-  switch ((status || '').toUpperCase()) {
-    case 'OPEN':
-      return 'bg-blue-100 text-blue-800'
-    case 'IN_PROGRESS':
-      return 'bg-amber-100 text-amber-800'
-    case 'RESOLVED':
-      return 'bg-emerald-100 text-emerald-800'
-    case 'CLOSED':
-      return 'bg-slate-200 text-slate-800'
-    case 'REJECTED':
-      return 'bg-rose-100 text-rose-800'
-    default:
-      return 'bg-slate-100 text-slate-700'
-  }
-}
-
-function StatusPill({ status }) {
-  return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusClasses(status)}`}
-    >
-      {formatEnum(status)}
-    </span>
-  )
 }
 
 function displayTicketId(ticket) {
@@ -625,12 +582,6 @@ export default function AdminTicketsPage() {
                 <div className="max-w-full">
                   <TicketWorkflowBar status={ticket.status} rejectReason={ticket.rejectReason} compact />
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <StatusPill status={ticket.status} />
-                  <span className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}>
-                    {ticket.priority || '—'}
-                  </span>
-                </div>
                 <p className="text-right text-sm text-gray-600">
                   <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
                 </p>
@@ -640,7 +591,7 @@ export default function AdminTicketsPage() {
                     onClick={() => setDeleteTarget(ticket)}
                     aria-label={`Delete ticket ${displayTicketId(ticket)}`}
                     title="Delete ticket"
-                    className="inline-flex h-9 w-9 items-center justify-center self-end rounded-lg border border-rose-200 bg-rose-50 text-sm text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100"
+                    className="inline-flex items-center justify-center self-end p-1 text-rose-700 transition duration-200 hover:-translate-y-0.5 hover:text-rose-800"
                   >
                     <Trash2 className="h-4 w-4" strokeWidth={2.2} />
                   </button>
@@ -754,7 +705,7 @@ export default function AdminTicketsPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col overflow-hidden bg-slate-100 text-slate-900 md:flex-row">
+    <div className="flex min-h-[calc(100vh-4rem)] w-full flex-col overflow-hidden bg-slate-100 text-slate-900 md:h-[calc(100vh-4rem)] md:min-h-0 md:flex-row">
       <ActionToasts toasts={toasts} onDismiss={dismissToast} />
       {deleteTarget && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-[2px]">
@@ -795,7 +746,7 @@ export default function AdminTicketsPage() {
           </div>
         </div>
       )}
-      <aside className="border-b border-slate-200 bg-slate-950 text-white md:flex md:min-h-[calc(100vh-4rem)] md:w-72 md:shrink-0 md:flex-col md:border-b-0 md:border-r md:border-slate-800">
+      <aside className="border-b border-slate-200 bg-slate-950 text-white md:flex md:h-full md:w-72 md:shrink-0 md:flex-col md:self-stretch md:border-b-0 md:border-r md:border-slate-800">
         <div className="border-b border-white/10 px-5 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
             Admin
@@ -804,7 +755,7 @@ export default function AdminTicketsPage() {
         </div>
         <nav
           aria-label="Admin ticket tasks"
-          className="flex flex-row gap-2 overflow-x-auto p-3 md:flex-1 md:flex-col md:justify-evenly md:overflow-visible md:px-3 md:py-6"
+          className="flex flex-row gap-2 overflow-x-auto p-3 md:flex-1 md:flex-col md:justify-start md:gap-3 md:overflow-y-auto md:overflow-x-hidden md:px-3 md:py-6"
         >
           {ADMIN_TABS.map((tab) => {
             const isActive = activeTab === tab.id
@@ -830,8 +781,7 @@ export default function AdminTicketsPage() {
         </nav>
       </aside>
 
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100">
-        <TicketParticlesBackground />
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100 md:h-full">
         <div className="relative z-10 border-b border-slate-200 bg-white px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
             Admin tickets
@@ -846,7 +796,7 @@ export default function AdminTicketsPage() {
           </div>
         </div>
 
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-3 pb-4 pt-3">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3">
           {activeTab === 'view_all' && (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
               {viewAllCards.map((card) => {

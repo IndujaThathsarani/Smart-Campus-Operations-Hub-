@@ -4,8 +4,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
-
-const MAX_ATTACHMENTS = 3 // Maximum number of photo attachments allowed (e.g., for incident evidence)
+import {
+  inspectTicketAttachments,
+  MAX_ATTACHMENTS,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_SUBJECT_LENGTH,
+  validateTicketForm,
+} from './ticketFormValidation'
 
 function formatSubmitError(err) {
   const msg = err?.body?.message
@@ -30,6 +35,8 @@ export default function TicketCreatePage() {
 
   const [submitPhase, setSubmitPhase] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
+  const [validationErrors, setValidationErrors] = useState({})
+  const [attachmentNotice, setAttachmentNotice] = useState('')
 
   // Fetch resources for optional linking in incident tickets (populates resource dropdown)
   // Array to store attached photo files and their preview URLs
@@ -49,17 +56,19 @@ export default function TicketCreatePage() {
 
   // Function to add selected image files to the attachments array (up to MAX_ATTACHMENTS)
   function addFiles(fileList) {
-    const incoming = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'))
-    if (incoming.length === 0) return
+    const { acceptedFiles, message } = inspectTicketAttachments(fileList, attachmentsRef.current.length)
+    setAttachmentNotice(message)
+    if (acceptedFiles.length === 0) return
 
     setAttachments((prev) => {
       const next = [...prev]
-      for (const file of incoming) {
+      for (const file of acceptedFiles) {
         if (next.length >= MAX_ATTACHMENTS) break
         next.push({ file, url: URL.createObjectURL(file) })
       }
       return next
     })
+    setValidationErrors((prev) => ({ ...prev, attachments: undefined }))
   }
 
   // Function to remove a specific attachment by index and clean up its preview URL
@@ -70,6 +79,7 @@ export default function TicketCreatePage() {
       if (removed) URL.revokeObjectURL(removed.url)
       return copy
     })
+    setAttachmentNotice('')
   }
 
   // Handler for file input change: adds selected files and resets input for re-selection
@@ -80,11 +90,16 @@ export default function TicketCreatePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const hasLocation = location.trim().length > 0
-    const hasSubject = subject.trim().length > 0
-    const hasContact = contactEmail.trim().length > 0 || contactPhone.trim().length > 0
-
-    if (!hasLocation || !hasContact || description.trim().length < 10 || !hasSubject) {
+    const errors = validateTicketForm({
+      subject,
+      location,
+      description,
+      contactEmail,
+      contactPhone,
+      attachments,
+    })
+    setValidationErrors(errors)
+    if (Object.keys(errors).length > 0) {
       return
     }
 
@@ -132,10 +147,16 @@ export default function TicketCreatePage() {
   }
 
   const canSubmit =
-    subject.trim().length > 0 &&
-    location.trim().length > 0 &&
-    (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
-    description.trim().length >= 10
+    Object.keys(
+      validateTicketForm({
+        subject,
+        location,
+        description,
+        contactEmail,
+        contactPhone,
+        attachments,
+      }),
+    ).length === 0
 
   const submitting = submitPhase === 'loading'
 
@@ -178,10 +199,18 @@ export default function TicketCreatePage() {
               autoComplete="off"
               placeholder="Brief summary of the issue"
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              onChange={(e) => {
+                setSubject(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, subject: undefined }))
+              }}
+              maxLength={MAX_SUBJECT_LENGTH}
               disabled={submitting}
               className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
+            <div className="flex items-center justify-between gap-3">
+              <p className="m-0 text-xs text-gray-500">{subject.trim().length} / {MAX_SUBJECT_LENGTH}</p>
+              {validationErrors.subject && <p className="m-0 text-xs text-red-700">{validationErrors.subject}</p>}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -211,11 +240,15 @@ export default function TicketCreatePage() {
               autoComplete="off"
               placeholder="e.g. Block C, Level 2, corridor by stairs"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => {
+                setLocation(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, location: undefined }))
+              }}
               disabled={submitting}
               className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
             <p className="m-0 text-xs text-gray-500">Where the incident happened (building, room, area).</p>
+            {validationErrors.location && <p className="m-0 text-xs text-red-700">{validationErrors.location}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -254,13 +287,20 @@ export default function TicketCreatePage() {
               id="description"
               required
               minLength={10}
-              maxLength={4000}
+              maxLength={MAX_DESCRIPTION_LENGTH}
               placeholder="Describe the issue (minimum 10 characters)."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, description: undefined }))
+              }}
               disabled={submitting}
               className="min-h-28 resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
+            <div className="flex items-center justify-between gap-3">
+              <p className="m-0 text-xs text-gray-500">{description.trim().length} / {MAX_DESCRIPTION_LENGTH}</p>
+              {validationErrors.description && <p className="m-0 text-xs text-red-700">{validationErrors.description}</p>}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -271,10 +311,14 @@ export default function TicketCreatePage() {
               autoComplete="email"
               placeholder="you@university.edu"
               value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
+              onChange={(e) => {
+                setContactEmail(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, contactEmail: undefined, contact: undefined }))
+              }}
               disabled={submitting}
               className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
+            {validationErrors.contactEmail && <p className="m-0 text-xs text-red-700">{validationErrors.contactEmail}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -285,11 +329,16 @@ export default function TicketCreatePage() {
               autoComplete="tel"
               placeholder="+94 …"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => {
+                setContactPhone(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, contactPhone: undefined, contact: undefined }))
+              }}
               disabled={submitting}
               className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
             <p className="m-0 text-xs text-gray-500">Provide at least email or phone.</p>
+            {validationErrors.contactPhone && <p className="m-0 text-xs text-red-700">{validationErrors.contactPhone}</p>}
+            {validationErrors.contact && <p className="m-0 text-xs text-red-700">{validationErrors.contact}</p>}
           </div>
 
           <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-3 py-2.5">
@@ -313,6 +362,8 @@ export default function TicketCreatePage() {
               />
             </div>
             <p className="mt-2 text-xs text-slate-500">{attachments.length} / {MAX_ATTACHMENTS} attached</p>
+            {attachmentNotice && <p className="mt-1 text-xs text-amber-700">{attachmentNotice}</p>}
+            {validationErrors.attachments && <p className="mt-1 text-xs text-red-700">{validationErrors.attachments}</p>}
 
             {/* Grid to display previews of attached photos with remove buttons */}
             {attachments.length > 0 && (
