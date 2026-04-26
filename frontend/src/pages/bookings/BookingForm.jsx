@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createBooking, checkConflict } from '../../services/bookingService';
 
@@ -99,15 +100,15 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
     if (bookingCreated) {
         const isWaitlisted = bookingResult?.status === 'WAITLISTED';
         return (
-            <div className="min-h-[70vh] flex items-center justify-center bg-[#f3f4f6] p-6">
-                <div className="w-full max-w-xl rounded-3xl bg-[#111827] p-10 text-center shadow-lg border border-blue-500/20">
-                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-4xl text-blue-600">
-                        ✓
+            <div className="flex min-h-[70vh] items-center justify-center bg-slate-100/70 p-6">
+                <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl sm:p-10">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-700">
+                        <CheckCircle2 className="h-11 w-11" />
                     </div>
-                    <h2 className="mb-3 text-4xl font-extrabold text-white">
+                    <h2 className="mb-3 text-3xl font-extrabold text-slate-900 sm:text-4xl">
                         {isWaitlisted ? 'Added to Waitlist!' : 'Booking Confirmed!'}
                     </h2>
-                    <p className="mx-auto mb-8 max-w-md text-base text-white/90">
+                    <p className="mx-auto mb-8 max-w-md text-base text-slate-600">
                         {isWaitlisted
                             ? 'Your slot is already taken, so your request has been added to the waitlist. You will be notified if it gets promoted.'
                             : 'Your booking request has been placed successfully. Click the button below to view My Bookings.'}
@@ -115,8 +116,9 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
                     <button
                         type="button"
                         onClick={() => navigate('/bookings?tab=my')}
-                        className="rounded-xl bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow hover:bg-blue-700"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-700 px-8 py-3 text-base font-semibold text-white shadow hover:bg-cyan-800"
                     >
+                        <CalendarClock className="h-5 w-5" />
                         {isWaitlisted ? 'View My Waitlist Booking' : 'Go to My Bookings'}
                     </button>
                 </div>
@@ -125,25 +127,40 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
     }
 
     return (
-        <div className="max-w-2xl mx-auto p-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-                <h1 className="text-2xl font-bold mb-6">📅 Request a Booking</h1>
+        <div className="mx-auto max-w-3xl p-2 sm:p-4">
+            <section className="mb-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-900 p-5 text-white shadow-lg sm:p-6">
+                <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Booking Request
+                </p>
+                <h1 className="text-2xl font-bold sm:text-3xl">Reserve a Campus Resource</h1>
+                <p className="mt-2 text-sm text-slate-200 sm:text-base">
+                    Submit your preferred time window and purpose. Admins will review and notify you after approval or rejection.
+                </p>
+            </section>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 className="mb-5 inline-flex items-center gap-2 text-lg font-bold text-slate-900">
+                    <CalendarClock className="h-5 w-5 text-cyan-700" />
+                    Request Details
+                </h2>
 
                 {error && (
-                    <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 border border-red-200">
+                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                         {error}
                     </div>
                 )}
 
                 {conflictError && (
-                    <div className="bg-yellow-100 text-yellow-700 p-3 rounded-lg mb-4 border border-yellow-200">
+                    <div className="mb-4 inline-flex w-full items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                         {conflictError}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-gray-700 font-medium mb-2">Resource ID *</label>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Resource ID *</label>
                         <input
                             type="text"
                             name="resourceId"
@@ -151,27 +168,27 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
                             onChange={handleChange}
                             onBlur={checkForConflict}
                             required
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                             placeholder="e.g., RES-001"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Enter the resource ID you want to book</p>
+                        <p className="mt-1 text-xs text-slate-500">Enter the resource ID you want to book.</p>
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-gray-700 font-medium mb-2">Location</label>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Location</label>
                         <input
                             type="text"
                             name="location"
                             value={formData.location}
                             onChange={handleChange}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                             placeholder="Location will auto-fill from selected resource"
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label className="block text-gray-700 font-medium mb-2">Start Time *</label>
+                            <label className="mb-2 block text-sm font-semibold text-slate-700">Start Time *</label>
                             <input
                                 type="datetime-local"
                                 name="startTime"
@@ -180,11 +197,11 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
                                 onBlur={checkForConflict}
                                 min={getMinDateTime()}
                                 required
-                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                             />
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-medium mb-2">End Time *</label>
+                            <label className="mb-2 block text-sm font-semibold text-slate-700">End Time *</label>
                             <input
                                 type="datetime-local"
                                 name="endTime"
@@ -193,26 +210,26 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
                                 onBlur={checkForConflict}
                                 min={formData.startTime || getMinDateTime()}
                                 required
-                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                             />
                         </div>
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-gray-700 font-medium mb-2">Purpose *</label>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Purpose *</label>
                         <textarea
                             name="purpose"
                             value={formData.purpose}
                             onChange={handleChange}
                             required
                             rows="3"
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                             placeholder="Describe the purpose of this booking"
                         />
                     </div>
 
                     <div className="mb-6">
-                        <label className="block text-gray-700 font-medium mb-2">Expected Attendees</label>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">Expected Attendees</label>
                         <input
                             type="number"
                             name="expectedAttendees"
@@ -220,16 +237,17 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
                             onChange={handleChange}
                             min="1"
                             max="500"
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                         />
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-700 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-800 disabled:bg-slate-400"
                         >
+                            <CheckCircle2 className="h-4 w-4" />
                             {loading ? 'Submitting...' : 'Submit Booking Request'}
                         </button>
                         {conflictError && (
@@ -237,23 +255,30 @@ const BookingForm = ({ initialResourceId = '', initialLocation = '', initialRetu
                                 type="button"
                                 onClick={handleJoinWaitlist}
                                 disabled={loading}
-                                className="flex-1 bg-amber-500 text-white py-2 rounded-lg hover:bg-amber-600 disabled:bg-gray-400 transition-colors"
+                                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:bg-slate-400"
                             >
+                                <Clock3 className="h-4 w-4" />
                                 {loading ? 'Joining...' : 'Join Waitlist'}
                             </button>
                         )}
                         <button
                             type="button"
                             onClick={() => navigate(initialReturnTo || '/bookings?tab=my')}
-                            className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-300"
                         >
+                            <Clock3 className="h-4 w-4" />
                             Cancel
                         </button>
                     </div>
                 </form>
 
-                <div className="mt-6 p-3 bg-blue-50 rounded-lg text-sm text-gray-600">
-                    <strong>📌 Note:</strong> Bookings will be reviewed by admin. You will receive a notification when your booking is approved or rejected.
+                <div className="mt-6 rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-sm text-slate-700">
+                    <p className="inline-flex items-start gap-2">
+                        <Users className="mt-0.5 h-4 w-4 shrink-0 text-cyan-700" />
+                        <span>
+                            <strong>Note:</strong> Bookings are reviewed by admin. You will receive a notification once your request is approved or rejected.
+                        </span>
+                    </p>
                 </div>
             </div>
         </div>
