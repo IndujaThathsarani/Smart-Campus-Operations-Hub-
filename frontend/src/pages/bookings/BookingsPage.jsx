@@ -13,6 +13,7 @@ const BookingsPage = () => {
     const requestedTab = searchParams.get('tab');
     const prefilledResourceId = searchParams.get('resourceId') || '';
     const prefilledLocation = searchParams.get('location') || '';
+    const prefilledCapacity = searchParams.get('capacity') || '';
     const returnTo = searchParams.get('returnTo') || '';
     const isAdminView = roles.includes('ROLE_ADMIN') || roles.includes('ROLE_SYSTEM_ADMIN');
     const canOpenUserBookingForm = Boolean(prefilledResourceId);
@@ -74,6 +75,7 @@ const BookingsPage = () => {
                                 <BookingForm
                                     initialResourceId={prefilledResourceId}
                                     initialLocation={prefilledLocation}
+                                    initialCapacity={prefilledCapacity}
                                     initialReturnTo={returnTo}
                                 />
                             )}

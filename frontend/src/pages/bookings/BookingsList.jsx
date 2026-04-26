@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, BarChart3, CheckCircle2, Clock3, Filter, ListChecks, XCircle } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, Clock3, Filter, ListChecks, Search, XCircle } from 'lucide-react';
 import { getAllBookings, approveBooking, rejectBooking, getBookingStatistics } from '../../services/bookingService';
 
 const BookingsList = () => {
@@ -7,6 +7,7 @@ const BookingsList = () => {
     const [statistics, setStatistics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
+    const [searchTerm, setSearchTerm] = useState('');
     const [showStats, setShowStats] = useState(false);
     const [toast, setToast] = useState(null);
     const [rejectDialog, setRejectDialog] = useState({
@@ -105,9 +106,26 @@ const BookingsList = () => {
         }
     };
 
-    const filteredBookings = filter === 'ALL'
-        ? bookings
-        : bookings.filter(b => b.status === filter);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filteredBookings = bookings.filter((booking) => {
+        const statusMatches = filter === 'ALL' ? true : booking.status === filter;
+        if (!statusMatches) return false;
+
+        if (!normalizedSearch) return true;
+
+        const searchableFields = [
+            booking.resourceId,
+            booking.location,
+            booking.userName,
+            booking.purpose,
+            booking.status,
+        ];
+
+        return searchableFields.some((field) =>
+            String(field || '').toLowerCase().includes(normalizedSearch),
+        );
+    });
 
     const formatDateTime = (value) => {
         return new Date(value).toLocaleString([], {
@@ -267,6 +285,23 @@ const BookingsList = () => {
             )}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-4">
+                    <label htmlFor="booking-search" className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Search bookings
+                    </label>
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                            id="booking-search"
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by resource, location, user, purpose, or status"
+                            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+                        />
+                    </div>
+                </div>
+
                 <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     <Filter className="h-4 w-4" />
                     Filter by status
