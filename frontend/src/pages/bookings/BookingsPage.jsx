@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { CalendarFold, ClipboardList } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import TicketParticlesBackground from '../../components/TicketParticlesBackground';
 import { useAuth } from '../../context/AuthContext';
 import BookingsList from './BookingsList';
 import BookingForm from './BookingForm';
@@ -11,12 +13,11 @@ const BookingsPage = () => {
     const requestedTab = searchParams.get('tab');
     const prefilledResourceId = searchParams.get('resourceId') || '';
     const prefilledLocation = searchParams.get('location') || '';
+    const prefilledCapacity = searchParams.get('capacity') || '';
     const returnTo = searchParams.get('returnTo') || '';
     const isAdminView = roles.includes('ROLE_ADMIN') || roles.includes('ROLE_SYSTEM_ADMIN');
     const canOpenUserBookingForm = Boolean(prefilledResourceId);
     const [activeTab, setActiveTab] = useState(isAdminView ? 'all' : 'my');
-    const showTabNavigation = isAdminView || activeTab !== 'new';
-
     useEffect(() => {
         if (isAdminView) {
             setActiveTab('all');
@@ -42,50 +43,47 @@ const BookingsPage = () => {
         }
     }, [requestedTab, isAdminView, canOpenUserBookingForm]);
 
-    return (
-        <div className="mx-auto w-full px-2 py-6 sm:px-4 lg:px-6">
-            {/* Tab Navigation */}
-            {showTabNavigation && (
-                <div className="flex border-b mb-6">
-                    {isAdminView && (
-                        <button
-                            onClick={() => setActiveTab('all')}
-                            className={`px-6 py-3 font-medium transition-colors ${
-                                activeTab === 'all'
-                                    ? 'border-b-2 border-blue-500 text-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            📋 All Bookings
-                        </button>
-                    )}
-                    {!isAdminView && (
-                        <button
-                            onClick={() => setActiveTab('my')}
-                            className={`px-6 py-3 font-medium transition-colors ${
-                                activeTab === 'my'
-                                    ? 'border-b-2 border-blue-500 text-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            📖 My Bookings
-                        </button>
-                    )}
-                </div>
-            )}
+    const tabButtonClass = (tab) =>
+        `inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+            activeTab === tab
+                ? 'border-cyan-200 bg-cyan-50 text-cyan-700 shadow-sm'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800'
+        }`;
 
-            {/* Render Active Tab */}
-            <div>
-                {isAdminView && activeTab === 'all' && <BookingsList />}
-                {!isAdminView && activeTab === 'new' && canOpenUserBookingForm && (
-                    <BookingForm
-                        initialResourceId={prefilledResourceId}
-                        initialLocation={prefilledLocation}
-                        initialReturnTo={returnTo}
-                    />
-                )}
-                {!isAdminView && activeTab === 'my' && <MyBookings />}
-            </div>
+    return (
+        <div className="w-full px-2 py-2 sm:px-4 sm:py-4 lg:px-6">
+            {isAdminView ? (
+                <>
+                    <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                        <div className="flex flex-wrap gap-2">
+                            <button onClick={() => setActiveTab('all')} className={tabButtonClass('all')}>
+                                <ClipboardList className="h-4 w-4" />
+                                All Bookings
+                            </button>
+                        </div>
+                    </section>
+
+                    <div>{activeTab === 'all' && <BookingsList />}</div>
+                </>
+            ) : (
+                <section className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden rounded-none border-0 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-0">
+                    <TicketParticlesBackground />
+
+                    <div className="relative z-10 w-full px-2 py-2 sm:px-4 sm:py-4 lg:px-6">
+                        <div className="w-full">
+                            {activeTab === 'new' && canOpenUserBookingForm && (
+                                <BookingForm
+                                    initialResourceId={prefilledResourceId}
+                                    initialLocation={prefilledLocation}
+                                    initialCapacity={prefilledCapacity}
+                                    initialReturnTo={returnTo}
+                                />
+                            )}
+                            {activeTab === 'my' && <MyBookings />}
+                        </div>
+                    </div>
+                </section>
+            )}
         </div>
     );
 };

@@ -260,12 +260,9 @@ public void validateFutureDate(LocalDateTime startTime) {
     }
 }
 
-// Validate booking duration (max 4 hours)
+// Validate booking duration (minimum 1 hour)
 public void validateDuration(LocalDateTime startTime, LocalDateTime endTime) {
     long hours = java.time.Duration.between(startTime, endTime).toHours();
-    if (hours > 4) {
-        throw new IllegalArgumentException("Booking cannot exceed 4 hours");
-    }
     if (hours < 1) {
         throw new IllegalArgumentException("Booking must be at least 1 hour");
     }
