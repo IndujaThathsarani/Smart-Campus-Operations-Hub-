@@ -16,6 +16,7 @@ import TechnicianTicketsDashboard from "./pages/tickets/TechnicianTicketsDashboa
 import NotificationsPage from "./pages/notifications/NotificationsPage";
 import UnauthorizedPage from "./pages/auth/UnauthorizedPage";
 import SystemAdminDashboard from "./pages/system-admin/SystemAdminDashboard";
+import CustomNotificationPage from "./pages/system-admin/CustomNotificationPage";
 
 
 export default function App() {
@@ -52,6 +53,15 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+
+        <Route
+          path="/system-admin/custom-notification"
+          element={
+            <ProtectedRoute allowedRoles={["ROLE_SYSTEM_ADMIN"]}>
+              <CustomNotificationPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/bookings"

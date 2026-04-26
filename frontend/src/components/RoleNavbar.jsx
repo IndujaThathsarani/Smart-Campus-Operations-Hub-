@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { apiGet } from '../services/apiClient'
+import FloatingNotificationsBell from './FloatingNotificationsBell'
 
 const NAVBAR_LINKS = {
   user: [
@@ -14,20 +13,18 @@ const NAVBAR_LINKS = {
     { to: '/', label: 'Home', end: true },
     { to: '/resources', label: 'Resources' },
     { to: '/technician/tickets', label: 'Tickets' },
-    { to: '/notifications', label: 'Notifications' },
   ],
   admin: [
     { to: '/admin/catalogue', label: 'Admin Catalogue' },
     { to: '/admin/tickets', label: 'Admin Tickets' },
     { to: '/bookings', label: 'Bookings' },
-    { to: '/notifications', label: 'Notifications' },
   ],
   systemAdmin: [
     { to: '/system-admin/dashboard', label: 'System Admin' },
     { to: '/admin/catalogue', label: 'Admin Catalogue' },
     { to: '/admin/tickets', label: 'Admin Tickets' },
     { to: '/bookings', label: 'Bookings' },
-    { to: '/notifications', label: 'Notifications' },
+    { to: '/system-admin/custom-notification', label: 'Custom Notification' },
   ],
 }
 
@@ -41,53 +38,8 @@ const linkClass = ({ isActive }) =>
 
 export default function RoleNavbar({ variant = 'user' }) {
   const { isAuthenticated, logout } = useAuth()
-  const location = useLocation()
   const navigate = useNavigate()
   const links = NAVBAR_LINKS[variant] || NAVBAR_LINKS.user
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  const unreadLabel = useMemo(() => {
-    if (unreadCount <= 0) return ''
-    return unreadCount > 99 ? '99+' : String(unreadCount)
-  }, [unreadCount])
-
-  useEffect(() => {
-    let isMounted = true
-
-    const loadUnreadCount = async () => {
-      if (!isAuthenticated) {
-        if (isMounted) setUnreadCount(0)
-        return
-      }
-
-      try {
-        const data = await apiGet('/api/notifications/me')
-        const list = Array.isArray(data) ? data : []
-        const unread = list.reduce((count, item) => count + (item?.read ? 0 : 1), 0)
-        if (isMounted) {
-          setUnreadCount(unread)
-        }
-      } catch {
-        if (isMounted) {
-          setUnreadCount(0)
-        }
-      }
-    }
-
-    loadUnreadCount()
-    const timerId = window.setInterval(loadUnreadCount, 60000)
-    const handleNotificationRefresh = () => {
-      loadUnreadCount()
-    }
-
-    window.addEventListener('notifications:refresh', handleNotificationRefresh)
-
-    return () => {
-      isMounted = false
-      window.clearInterval(timerId)
-      window.removeEventListener('notifications:refresh', handleNotificationRefresh)
-    }
-  }, [isAuthenticated, location.pathname])
 
   const handleLogout = async () => {
     await logout()
@@ -114,14 +66,7 @@ export default function RoleNavbar({ variant = 'user' }) {
                 end={link.end}
                 className={linkClass}
               >
-                <span className="inline-flex items-center gap-2">
-                  <span>{link.label}</span>
-                  {link.to === '/notifications' && unreadLabel && (
-                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-sky-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                      {unreadLabel}
-                    </span>
-                  )}
-                </span>
+                {link.label}
               </NavLink>
             ))}
         </nav>
@@ -136,6 +81,8 @@ export default function RoleNavbar({ variant = 'user' }) {
           </button>
         )}
       </div>
+
+      {isAuthenticated && variant !== 'systemAdmin' && <FloatingNotificationsBell />}
     </header>
   )
 }

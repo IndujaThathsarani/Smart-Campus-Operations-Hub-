@@ -21,3 +21,10 @@ export const updateUserStatus = async (userId, active) => {
     body: { active },
   });
 };
+
+export const sendCustomNotification = async (payload) => {
+  return apiSend("/api/notifications/custom", {
+    method: "POST",
+    body: payload,
+  });
+};
