@@ -137,12 +137,15 @@ function readFileAsDataUrl(file) {
 
 function validateForm(data, isEditing) {
   const errors = {}
+  const todayIso = getTodayIsoDate()
   const name = (data.name || '').trim()
   const location = (data.location || '').trim()
   const description = (data.description || '').trim()
   const capacity = Number(data.capacity)
   const startDate = data.availabilityStartDate
   const endDate = data.availabilityEndDate
+  const startDateValue = startDate ? new Date(`${startDate}T00:00:00`) : null
+  const endDateValue = endDate ? new Date(`${endDate}T00:00:00`) : null
   const startMinutes = toMinutes(data.availabilityStart)
   const endMinutes = toMinutes(data.availabilityEnd)
 
@@ -178,10 +181,16 @@ function validateForm(data, isEditing) {
 
   if (!startDate) {
     errors.availabilityStartDate = 'Choose a start date.'
+  } else if (!startDateValue || Number.isNaN(startDateValue.getTime())) {
+    errors.availabilityStartDate = 'Choose a valid start date.'
+  } else if (!isEditing && startDate < todayIso) {
+    errors.availabilityStartDate = 'Start date cannot be in the past.'
   }
 
   if (!endDate) {
     errors.availabilityEndDate = 'Choose an end date.'
+  } else if (!endDateValue || Number.isNaN(endDateValue.getTime())) {
+    errors.availabilityEndDate = 'Choose a valid end date.'
   }
 
   if (startDate && endDate && startDate > endDate) {
@@ -200,7 +209,9 @@ function validateForm(data, isEditing) {
     errors.availabilityEnd = 'End time must be later than start time.'
   }
 
-  if (description.length > 250) {
+  if (!description) {
+    errors.description = 'Description is required.'
+  } else if (description.length > 250) {
     errors.description = 'Description must be 250 characters or fewer.'
   }
 
@@ -773,6 +784,7 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-name"
                   type="text"
+                  required
                   placeholder="Main Auditorium"
                   value={formData.name}
                   onChange={(e) => updateFormField('name', e.target.value)}
@@ -789,6 +801,7 @@ export default function AdminCatalogue() {
                 </label>
                 <select
                   id="resource-type"
+                  required
                   value={formData.type}
                   onChange={(e) => updateFormField('type', e.target.value)}
                   disabled={loading}
@@ -850,6 +863,7 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-capacity"
                   type="number"
+                  required
                   min="1"
                   step="1"
                   placeholder="120"
@@ -869,6 +883,7 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-location"
                   type="text"
+                  required
                   placeholder="Block B, Level 3"
                   value={formData.location}
                   onChange={(e) => updateFormField('location', e.target.value)}
@@ -886,6 +901,8 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-start-date"
                   type="date"
+                  required
+                  min={editingId ? undefined : getTodayIsoDate()}
                   value={formData.availabilityStartDate}
                   onChange={(e) => updateFormField('availabilityStartDate', e.target.value)}
                   disabled={loading}
@@ -904,6 +921,8 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-end-date"
                   type="date"
+                  required
+                  min={formData.availabilityStartDate || (editingId ? undefined : getTodayIsoDate())}
                   value={formData.availabilityEndDate}
                   onChange={(e) => updateFormField('availabilityEndDate', e.target.value)}
                   disabled={loading}
@@ -922,6 +941,7 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-start"
                   type="time"
+                  required
                   value={formData.availabilityStart}
                   onChange={(e) => updateFormField('availabilityStart', e.target.value)}
                   disabled={loading}
@@ -940,6 +960,7 @@ export default function AdminCatalogue() {
                 <input
                   id="resource-end"
                   type="time"
+                  required
                   value={formData.availabilityEnd}
                   onChange={(e) => updateFormField('availabilityEnd', e.target.value)}
                   disabled={loading}
@@ -957,6 +978,7 @@ export default function AdminCatalogue() {
                 </label>
                 <select
                   id="resource-status"
+                  required
                   value={formData.status}
                   onChange={(e) => updateFormField('status', e.target.value)}
                   disabled={loading}
@@ -976,7 +998,8 @@ export default function AdminCatalogue() {
                 <textarea
                   id="resource-description"
                   rows="4"
-                  placeholder="Add optional details about this facility."
+                  required
+                  placeholder="Add details about this facility."
                   value={formData.description}
                   onChange={(e) => updateFormField('description', e.target.value)}
                   disabled={loading}

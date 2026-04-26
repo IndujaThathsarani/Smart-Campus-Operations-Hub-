@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
@@ -16,8 +16,12 @@ import {
   FaUsersCog,
 } from "react-icons/fa";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1562774053-701939374585?w=1920&auto=format";
+const HERO_IMAGES = [
+  "https://images.unsplash.com/photo-1562774053-701939374585?w=1920&auto=format",
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&auto=format",
+  "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1920&auto=format",
+  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1920&auto=format",
+];
 
 const modules = [
   {
@@ -78,17 +82,26 @@ const roles = [
 ];
 
 const quickHighlights = [
-  "Google OAuth 2.0 sign-in",
-  "Email & password authentication",
-  "Role-based access control",
-  "Protected frontend routes",
+  "Save Time with Online Booking",
+  "Avoid Double-Booking Conflicts",
+  "Get Instant Status Updates",
+  "Report Issues Anytime, Anywhere",
 ];
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
     AOS.init({ duration: 700, once: true, easing: "ease-out-cubic" });
+  }, []);
+
+  useEffect(() => {
+    const slideTimer = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % HERO_IMAGES.length);
+    }, 4500);
+
+    return () => window.clearInterval(slideTimer);
   }, []);
 
   const handleGetStarted = () => {
@@ -103,10 +116,15 @@ const HomePage = () => {
       className="w-full overflow-hidden bg-slate-50 text-slate-900"
     >
       <section className="relative isolate overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${HERO_IMAGE})` }}
-        />
+        {HERO_IMAGES.map((image, index) => (
+          <div
+            key={image}
+            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+              index === activeSlide ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ backgroundImage: `url(${image})` }}
+          />
+        ))}
         <div className="absolute inset-0 bg-slate-950/65" />
 
         <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
@@ -150,6 +168,22 @@ const HomePage = () => {
                 >
                   {item}
                 </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex items-center gap-3">
+              {HERO_IMAGES.map((image, index) => (
+                <button
+                  key={image}
+                  type="button"
+                  onClick={() => setActiveSlide(index)}
+                  aria-label={`Show slide ${index + 1}`}
+                  className={`h-2.5 rounded-full transition-all ${
+                    index === activeSlide
+                      ? "w-8 bg-white"
+                      : "w-2.5 bg-white/45 hover:bg-white/70"
+                  }`}
+                />
               ))}
             </div>
           </div>

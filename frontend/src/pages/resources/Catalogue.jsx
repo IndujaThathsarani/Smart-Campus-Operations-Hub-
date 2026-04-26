@@ -351,6 +351,7 @@ export default function Catalogue() {
     loadStoredIds(RECENTLY_VIEWED_STORAGE_KEY),
   )
   const [favouritePulseResourceId, setFavouritePulseResourceId] = useState('')
+  const [descriptionPopupResource, setDescriptionPopupResource] = useState(null)
 
   const favouriteResourceIdSet = useMemo(() => {
     return new Set(favoriteResourceIds)
@@ -523,6 +524,7 @@ export default function Catalogue() {
     }
     setSelectedCalendarResourceId(resource.id)
     markRecentlyViewed(resource.id)
+    setDescriptionPopupResource(resource)
   }
 
   const selectedCalendarResource = useMemo(() => {
@@ -1202,19 +1204,21 @@ export default function Catalogue() {
             </div>
 
             {selectedCalendarResource ? (
-              <p style={{ margin: '0 0 0.65rem', color: '#475569', fontSize: '0.74rem', lineHeight: 1.4 }}>
-                <strong>{selectedCalendarResource.name}</strong>
-                <br />
-                {selectedCalendarResource.availabilityStartDate && selectedCalendarResource.availabilityEndDate
-                  ? `${selectedCalendarResource.availabilityStartDate} to ${selectedCalendarResource.availabilityEndDate}`
-                  : 'No date range set'}
-                {(selectedCalendarResource.availabilityStart && selectedCalendarResource.availabilityEnd) ? (
-                  <>
-                    <br />
-                    {selectedCalendarResource.availabilityStart} - {selectedCalendarResource.availabilityEnd}
-                  </>
-                ) : null}
-              </p>
+              <div style={{ margin: '0 0 0.65rem', color: '#475569', fontSize: '0.74rem', lineHeight: 1.4 }}>
+                <p style={{ margin: 0 }}>
+                  <strong>{selectedCalendarResource.name}</strong>
+                  <br />
+                  {selectedCalendarResource.availabilityStartDate && selectedCalendarResource.availabilityEndDate
+                    ? `${selectedCalendarResource.availabilityStartDate} to ${selectedCalendarResource.availabilityEndDate}`
+                    : 'No date range set'}
+                  {(selectedCalendarResource.availabilityStart && selectedCalendarResource.availabilityEnd) ? (
+                    <>
+                      <br />
+                      {selectedCalendarResource.availabilityStart} - {selectedCalendarResource.availabilityEnd}
+                    </>
+                  ) : null}
+                </p>
+              </div>
             ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
@@ -1428,6 +1432,61 @@ export default function Catalogue() {
           </aside>
         </div>
       </main>
+
+      {descriptionPopupResource ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDescriptionPopupResource(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.48)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            zIndex: 40,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(520px, 100%)',
+              background: '#ffffff',
+              borderRadius: '14px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 20px 45px rgba(15, 23, 42, 0.28)',
+              padding: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                {descriptionPopupResource.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDescriptionPopupResource(null)}
+                style={{
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  padding: '0.35rem 0.55rem',
+                  cursor: 'pointer',
+                  color: '#334155',
+                  fontSize: '0.8rem',
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <p style={{ margin: '0.75rem 0 0', color: '#334155', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              {String(descriptionPopupResource.description || '').trim() || 'No description provided.'}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
