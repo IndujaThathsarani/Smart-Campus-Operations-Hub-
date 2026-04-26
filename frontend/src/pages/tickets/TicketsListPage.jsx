@@ -8,13 +8,18 @@ import { useResources } from '../../hooks/useResources'
 import { useActionToasts } from '../../hooks/useActionToasts'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
 import { API_BASE_URL, apiGet, apiPostFormData, apiSend } from '../../services/apiClient'
+import {
+  inspectTicketAttachments,
+  MAX_ATTACHMENTS,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_SUBJECT_LENGTH,
+  validateTicketForm,
+} from './ticketFormValidation'
 
 const TICKET_FILTERS = [
   { id: 'CREATE', label: 'Create new ticket', icon: PlusCircle },
   { id: 'ALL', label: 'All Tickets', icon: FileText },
 ]
-
-const MAX_ATTACHMENTS = 3
 
 const SLA_TARGETS_MINUTES = {
   URGENT: { firstResponse: 30, resolution: 4 * 60 },
@@ -45,21 +50,6 @@ function excerpt(text, max = 120) {
   if (!text) return ''
   const t = text.trim()
   return t.length <= max ? t : `${t.slice(0, max)}…`
-}
-
-function priorityClasses(priority) {
-  switch ((priority || '').toLowerCase()) {
-    case 'urgent':
-      return 'bg-red-50 text-red-700'
-    case 'high':
-      return 'bg-orange-50 text-orange-700'
-    case 'medium':
-      return 'bg-blue-50 text-blue-700'
-    case 'low':
-      return 'bg-emerald-50 text-emerald-700'
-    default:
-      return 'bg-gray-100 text-gray-600'
-  }
 }
 
 function displayTicketNumber(ticket) {
@@ -191,6 +181,8 @@ export default function TicketsListPage() {
   const attachmentsRef = useRef(attachments)
   const [submitPhase, setSubmitPhase] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
+  const [validationErrors, setValidationErrors] = useState({})
+  const [attachmentNotice, setAttachmentNotice] = useState('')
   const [clockTick, setClockTick] = useState(() => Date.now())
 
   const loadTickets = useCallback(async () => {
@@ -246,17 +238,19 @@ export default function TicketsListPage() {
   }, [])
 
   const addFiles = useCallback((fileList) => {
-    const incoming = Array.from(fileList || []).filter((file) => file.type.startsWith('image/'))
-    if (incoming.length === 0) return
+    const { acceptedFiles, message } = inspectTicketAttachments(fileList, attachmentsRef.current.length)
+    setAttachmentNotice(message)
+    if (acceptedFiles.length === 0) return
 
     setAttachments((prev) => {
       const next = [...prev]
-      for (const file of incoming) {
+      for (const file of acceptedFiles) {
         if (next.length >= MAX_ATTACHMENTS) break
         next.push({ file, url: URL.createObjectURL(file) })
       }
       return next
     })
+    setValidationErrors((prev) => ({ ...prev, attachments: undefined }))
   }, [])
 
   const removeAttachment = useCallback((index) => {
@@ -268,6 +262,7 @@ export default function TicketsListPage() {
       }
       return next
     })
+    setAttachmentNotice('')
   }, [])
 
   const handleFileChange = useCallback(
@@ -281,11 +276,16 @@ export default function TicketsListPage() {
   const handleSubmitTicket = useCallback(
     async (e) => {
       e.preventDefault()
-      const hasSubject = subject.trim().length > 0
-      const hasLocation = location.trim().length > 0
-      const hasContact = contactEmail.trim().length > 0 || contactPhone.trim().length > 0
-
-      if (!hasSubject || !hasLocation || !hasContact || description.trim().length < 10) {
+      const errors = validateTicketForm({
+        subject,
+        location,
+        description,
+        contactEmail,
+        contactPhone,
+        attachments,
+      })
+      setValidationErrors(errors)
+      if (Object.keys(errors).length > 0) {
         return
       }
 
@@ -458,10 +458,16 @@ export default function TicketsListPage() {
   const visibleTickets = tickets.filter((ticket) => matchesFilter(ticket, activeFilter))
   const showCreateForm = activeFilter === 'CREATE'
   const canSubmit =
-    subject.trim().length > 0 &&
-    location.trim().length > 0 &&
-    (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
-    description.trim().length >= 10
+    Object.keys(
+      validateTicketForm({
+        subject,
+        location,
+        description,
+        contactEmail,
+        contactPhone,
+        attachments,
+      }),
+    ).length === 0
   const submitting = submitPhase === 'loading'
 
   return (
@@ -543,10 +549,18 @@ export default function TicketsListPage() {
                   autoComplete="off"
                   placeholder="Brief summary of the issue"
                   value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
+                  onChange={(e) => {
+                    setSubject(e.target.value)
+                    setValidationErrors((prev) => ({ ...prev, subject: undefined }))
+                  }}
+                  maxLength={MAX_SUBJECT_LENGTH}
                   disabled={submitting}
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition duration-200 hover:border-sky-400 hover:shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                 />
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <p className="m-0 text-xs text-gray-500">{subject.trim().length} / {MAX_SUBJECT_LENGTH}</p>
+                  {validationErrors.subject && <p className="m-0 text-xs text-red-700">{validationErrors.subject}</p>}
+                </div>
               </div>
 
               <div>
@@ -582,10 +596,14 @@ export default function TicketsListPage() {
                   autoComplete="off"
                   placeholder="e.g. Block C, Level 2, corridor by stairs"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => {
+                    setLocation(e.target.value)
+                    setValidationErrors((prev) => ({ ...prev, location: undefined }))
+                  }}
                   disabled={submitting}
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition duration-200 hover:border-sky-400 hover:shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                 />
+                {validationErrors.location && <p className="mt-1 text-xs text-red-700">{validationErrors.location}</p>}
               </div>
 
               <div>
@@ -635,13 +653,20 @@ export default function TicketsListPage() {
                 id="description"
                 required
                 minLength={10}
-                maxLength={4000}
+                maxLength={MAX_DESCRIPTION_LENGTH}
                 placeholder="Describe the issue (minimum 10 characters)."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  setValidationErrors((prev) => ({ ...prev, description: undefined }))
+                }}
                 disabled={submitting}
                 className="min-h-14 w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 transition duration-200 hover:border-sky-400 hover:shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
               />
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <p className="m-0 text-xs text-gray-500">{description.trim().length} / {MAX_DESCRIPTION_LENGTH}</p>
+                {validationErrors.description && <p className="m-0 text-xs text-red-700">{validationErrors.description}</p>}
+              </div>
             </div>
 
             <div className="grid gap-2.5 lg:grid-cols-2">
@@ -655,10 +680,14 @@ export default function TicketsListPage() {
                   autoComplete="email"
                   placeholder="you@university.edu"
                   value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
+                  onChange={(e) => {
+                    setContactEmail(e.target.value)
+                    setValidationErrors((prev) => ({ ...prev, contactEmail: undefined, contact: undefined }))
+                  }}
                   disabled={submitting}
                   className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition duration-200 hover:border-sky-400 hover:shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                 />
+                {validationErrors.contactEmail && <p className="mt-1 text-xs text-red-700">{validationErrors.contactEmail}</p>}
               </div>
 
               <div>
@@ -671,12 +700,17 @@ export default function TicketsListPage() {
                   autoComplete="tel"
                   placeholder="+94 ..."
                   value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
+                  onChange={(e) => {
+                    setContactPhone(e.target.value)
+                    setValidationErrors((prev) => ({ ...prev, contactPhone: undefined, contact: undefined }))
+                  }}
                   disabled={submitting}
                   className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition duration-200 hover:border-sky-400 hover:shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                 />
+                {validationErrors.contactPhone && <p className="mt-1 text-xs text-red-700">{validationErrors.contactPhone}</p>}
               </div>
             </div>
+            {validationErrors.contact && <p className="mt-1 text-xs text-red-700">{validationErrors.contact}</p>}
 
             <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
               <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-3 py-1.5 transition duration-200 hover:border-sky-400 hover:bg-sky-50/40">
@@ -700,6 +734,8 @@ export default function TicketsListPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   {attachments.length} / {MAX_ATTACHMENTS} attached
                 </p>
+                {attachmentNotice && <p className="mt-1 text-xs text-amber-700">{attachmentNotice}</p>}
+                {validationErrors.attachments && <p className="mt-1 text-xs text-red-700">{validationErrors.attachments}</p>}
 
                 {attachments.length > 0 && (
                   <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">
@@ -834,16 +870,6 @@ export default function TicketsListPage() {
                             rejectReason={ticket.rejectReason}
                             compact
                           />
-                        </div>
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold uppercase text-slate-700">
-                            {formatCategory(ticket.status)}
-                          </span>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-sm font-semibold uppercase ${priorityClasses(ticket.priority)}`}
-                          >
-                            {ticket.priority || '—'}
-                          </span>
                         </div>
                         <p className="text-right text-sm text-gray-600">
                           <time dateTime={ticket.createdAt}>{formatDate(ticket.createdAt)}</time>
