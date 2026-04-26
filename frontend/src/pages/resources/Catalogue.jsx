@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import TicketParticlesBackground from '../../components/TicketParticlesBackground'
 import { apiSend } from '../../services/apiClient'
 
 const CALENDAR_WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -604,16 +605,20 @@ export default function Catalogue() {
 
   return (
     <div
+      className="relative isolate w-full min-w-0 overflow-hidden"
       style={{
         display: 'flex',
         minHeight: 'calc(100vh - 4rem)',
         backgroundColor: '#f3f4f6',
         width: '100%',
         overflowX: 'hidden',
+        position: 'relative',
       }}
     >
+      <TicketParticlesBackground />
+
       {/* SIDEBAR - Like eProduct Dashboard */}
-      <aside style={{
+      <aside className="ticket-enter" style={{
         width: '280px',
         backgroundColor: '#1e293b',
         color: '#fff',
@@ -623,7 +628,9 @@ export default function Catalogue() {
         top: 0,
         alignSelf: 'flex-start',
         height: 'calc(100vh - 4rem)',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        zIndex: 1,
+        animationDelay: '40ms',
       }}>
         {/* Logo / Brand */}
         <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155' }}>
@@ -702,9 +709,9 @@ export default function Catalogue() {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main style={{ flex: 1, minWidth: 0, padding: '1.5rem' }}>
+      <main className="ticket-enter" style={{ flex: 1, minWidth: 0, padding: '1.5rem', position: 'relative', zIndex: 1, animationDelay: '120ms' }}>
         {/* Header with active category */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div className="ticket-enter" style={{ marginBottom: '1.5rem', animationDelay: '180ms' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
             {resourceCategories.find((category) => category.id === activeCategory)?.label || 'Resources'}
           </h1>
@@ -720,26 +727,26 @@ export default function Catalogue() {
           gap: '1rem',
           marginBottom: '1.5rem'
         }}>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '220ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Total Resources</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{resources.length}</div>
           </div>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '280ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Active</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#16a34a' }}>{resources.filter(r => r.status === 'ACTIVE').length}</div>
           </div>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '340ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Out of Service</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#dc2626' }}>{resources.filter(r => r.status === 'OUT_OF_SERVICE').length}</div>
           </div>
-          <div style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <div className="ticket-enter" style={{ background: '#fff', padding: '1rem', borderRadius: '10px', border: '1px solid #e5e7eb', animationDelay: '400ms' }}>
             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Categories</span>
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{resourceCategories.length}</div>
           </div>
         </div>
 
         {/* Filters Bar */}
-        <div style={{
+        <div className="ticket-enter" style={{
           background: '#fff',
           border: '1px solid #e5e7eb',
           borderRadius: '10px',
@@ -748,7 +755,8 @@ export default function Catalogue() {
           display: 'flex',
           gap: '0.75rem',
           flexWrap: 'wrap',
-          alignItems: 'center'
+          alignItems: 'center',
+          animationDelay: '460ms',
         }}>
           <input
             type="text"
@@ -788,11 +796,12 @@ export default function Catalogue() {
           alignItems: 'start'
         }}>
           {/* Resources Table - Like eProduct orders table */}
-          <div style={{
+          <div className="ticket-enter" style={{
             background: '#fff',
             border: '1px solid #e5e7eb',
             borderRadius: '10px',
-            overflowX: 'auto'
+            overflowX: 'auto',
+            animationDelay: '520ms',
           }}>
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center' }}>Loading resources...</div>
@@ -821,7 +830,7 @@ export default function Catalogue() {
                 </thead>
                 <tbody>
                   {filteredResources.map((resource, idx) => (
-                    <tr key={resource.id} style={{ borderTop: '1px solid #e5e7eb' }}>
+                    <tr key={resource.id} className="ticket-enter" style={{ borderTop: '1px solid #e5e7eb', animationDelay: `${idx * 45}ms` }}>
                       <td style={{ padding: '0.75rem', color: '#6b7280' }}>#{idx + 1}</td>
                       {showEquipmentImageColumn ? (
                         <td style={{ padding: '0.75rem' }}>
@@ -934,14 +943,15 @@ export default function Catalogue() {
           </div>
 
           {/* Booking calendar */}
-          <aside style={{
+          <aside className="ticket-enter" style={{
             background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
             border: '1px solid #e5e7eb',
             borderRadius: '14px',
             padding: '0.85rem',
             boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
             position: 'sticky',
-            top: '1rem'
+            top: '1rem',
+            animationDelay: '600ms',
           }}>
             <div style={{
               display: 'flex',
