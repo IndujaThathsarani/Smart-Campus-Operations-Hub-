@@ -10,6 +10,7 @@ import java.util.List;
 @Document(collection = "incident_tickets")
 public class IncidentTicket {
 
+    // Category groups the type of maintenance or incident request.
     public enum Category {
         ELECTRICAL,
         PLUMBING,
@@ -43,10 +44,13 @@ public class IncidentTicket {
     /** Human-friendly ticket number shown in UI (e.g. INC-2026-0001). */
     private String ticketNumber;
 
+    // Optional link to a campus resource when the issue belongs to a specific item/room asset.
     private String resourceId;
 
+    // Short summary shown on the ticket cards.
     private String subject;
 
+    // Physical place where the incident happened.
     private String location;
 
     private String createdByUserId;
@@ -55,21 +59,26 @@ public class IncidentTicket {
 
     private Category category;
 
+    // Main problem description entered by the reporter.
     private String description;
 
     private Priority priority;
 
+    // Preferred ways for staff to contact the person who raised the ticket.
     private String contactEmail;
 
     private String contactPhone;
 
+    // Current workflow stage of the ticket.
     private Status status;
 
+    // Only used when the ticket is rejected by admin/staff.
     private String rejectReason;
 
     /** Name or identifier of assigned technician/staff (free text until Module E links users). */
     private String assignedTo;
 
+    // SLA-related timestamps used for first response and resolution tracking.
     private Instant createdAt;
     private Instant firstResponseAt;
     private Instant resolvedAt;
@@ -77,6 +86,7 @@ public class IncidentTicket {
     /** Stored filenames under upload dir (not full paths in JSON). */
     private List<String> attachmentFileNames = new ArrayList<>();
 
+    // Embedded comment thread stored inside the same ticket document in MongoDB.
     private List<TicketComment> comments = new ArrayList<>();
 
     public String getId() {

@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 @Service
 public class IncidentTicketService {
 
+    // Business rules for the ticketing module are centralized here.
     private static final int MAX_ATTACHMENTS = 3;
     private static final String TICKET_COUNTER_COLLECTION = "ticket_counters";
 
@@ -65,7 +66,7 @@ public class IncidentTicketService {
         this.userRepository = userRepository;
     }
 
-    // Create incident ticket with attachments and optional resource linking (validates and sets resourceId)
+    // Creates the ticket, validates all user input, stores image files, and sends a creation notification.
     public IncidentTicket createWithAttachments(
             String resourceIdRaw,
             String subjectRaw,
@@ -124,6 +125,7 @@ public class IncidentTicketService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid priority");
         }
 
+        // Keep only real uploaded files and ignore empty multipart entries.
         List<MultipartFile> incoming = new ArrayList<>();
         if (files != null) {
             for (MultipartFile f : files) {
@@ -136,6 +138,7 @@ public class IncidentTicketService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At most 3 images allowed");
         }
 
+        // Build the MongoDB ticket document before attachments are written to disk.
         IncidentTicket ticket = new IncidentTicket();
         ticket.setResourceId(resourceId);
         ticket.setSubject(subject);
@@ -156,6 +159,7 @@ public class IncidentTicketService {
         IncidentTicket saved = incidentTicketRepository.save(ticket);
         String ticketId = saved.getId();
 
+        // Store physical files under a folder named with the saved ticket id.
         List<String> storedNames = new ArrayList<>();
         if (!incoming.isEmpty()) {
             Path dir = resolveUploadBaseDir().resolve(ticketId).normalize();
@@ -200,6 +204,7 @@ public class IncidentTicketService {
         return persisted;
     }
 
+    // Supports admin/user views that need server-side filtering by status, priority, or category.
     public List<IncidentTicket> findAllFiltered(String statusRaw, String priorityRaw, String categoryRaw) {
         String status = blankToNull(statusRaw);
         String priority = blankToNull(priorityRaw);
@@ -238,6 +243,7 @@ public class IncidentTicketService {
         return ensureTicketNumbers(mongoTemplate.find(query, IncidentTicket.class));
     }
 
+    // Updates workflow state and records SLA timestamps like first response and resolution time.
     public IncidentTicket updateStatus(String ticketId, String statusRaw, String rejectReasonRaw) {
         String id = blankToNull(ticketId);
         if (id == null) {
@@ -305,6 +311,7 @@ public class IncidentTicketService {
         return saved;
     }
 
+    // Assigns a technician/staff member and notifies both assignee and original ticket creator.
     public IncidentTicket updateAssignment(String ticketId, String assignedToRaw) {
         String id = blankToNull(ticketId);
         if (id == null) {
@@ -351,6 +358,7 @@ public class IncidentTicketService {
         return saved;
     }
 
+    // Adds a threaded comment and notifies the relevant ticket participants.
     public IncidentTicket addComment(
             String ticketId,
             String bodyRaw,
@@ -397,6 +405,7 @@ public class IncidentTicketService {
         return saved;
     }
 
+    // Allows only the comment owner to edit their own comment text.
     public IncidentTicket updateComment(String ticketId, String commentId, String bodyRaw, String ownerIdRaw) {
         IncidentTicket ticket = requireTicketById(ticketId);
         TicketComment comment = requireComment(ticket, commentId);
@@ -415,6 +424,7 @@ public class IncidentTicketService {
         return incidentTicketRepository.save(ticket);
     }
 
+    // Staff moderation option to hide or unhide a comment without removing it.
     public IncidentTicket setCommentHidden(String ticketId, String commentId, boolean hidden) {
         IncidentTicket ticket = requireTicketById(ticketId);
         TicketComment comment = requireComment(ticket, commentId);
@@ -422,6 +432,7 @@ public class IncidentTicketService {
         return incidentTicketRepository.save(ticket);
     }
 
+    // Deletes a comment after confirming that the current user owns that comment.
     public IncidentTicket deleteComment(String ticketId, String commentId, String ownerIdRaw) {
         IncidentTicket ticket = requireTicketById(ticketId);
         String cid = blankToNull(commentId);
@@ -478,6 +489,7 @@ public class IncidentTicketService {
         }
     }
 
+    // Sends notifications to the ticket owner and assigned technician when a new comment is added.
     private void notifyCommentParticipants(IncidentTicket ticket, String actorId, String author, String body) {
         if (ticket.getCreatedByUserId() != null && !ticket.getCreatedByUserId().equals(actorId)) {
             notificationService.createNotification(
@@ -507,6 +519,7 @@ public class IncidentTicketService {
         }
     }
 
+    // Tries to match the free-text assignment label back to a real staff user account.
     private User resolveAssignee(String assignedToRaw) {
         String assignedTo = blankToNull(assignedToRaw);
         if (assignedTo == null) {
@@ -562,6 +575,7 @@ public class IncidentTicketService {
         return metadata;
     }
 
+    // Deletes both the MongoDB ticket record and the upload folder for that ticket.
     public void deleteById(String ticketId) {
         String id = blankToNull(ticketId);
         if (id == null) {
@@ -579,6 +593,7 @@ public class IncidentTicketService {
         incidentTicketRepository.deleteById(id);
     }
 
+    // Validates and resolves the physical path of an attachment before it is served to the browser.
     public Path resolveAttachmentPath(String ticketIdRaw, String filenameRaw) {
         String ticketId = blankToNull(ticketIdRaw);
         String filename = blankToNull(filenameRaw);
@@ -628,6 +643,7 @@ public class IncidentTicketService {
         return s.trim();
     }
 
+    // Cleans filenames so uploads cannot escape the intended folder or contain unsafe characters.
     private static String sanitizeFilename(String original) {
         if (original == null || original.isBlank()) {
             return "image.bin";
@@ -639,6 +655,7 @@ public class IncidentTicketService {
         return name;
     }
 
+    // Generates display ids like INC-2026-0005 using the year and a sequence counter.
     private String generateTicketNumber(Instant now) {
         int year = now.atZone(ZoneOffset.UTC).getYear();
         long seq = nextTicketSequence(year);
@@ -664,6 +681,7 @@ public class IncidentTicketService {
         return tickets;
     }
 
+    // Uses an atomic MongoDB counter document so ticket numbers stay unique and sequential.
     private long nextTicketSequence(int year) {
         String counterId = "incident_ticket_" + year;
         Query query = new Query(Criteria.where("_id").is(counterId));
@@ -676,6 +694,7 @@ public class IncidentTicketService {
         return counter.seq;
     }
 
+    // Finds the correct uploads directory in different local run locations.
     private Path resolveUploadBaseDir() {
         List<Path> candidates = List.of(
                 Paths.get(uploadDir),

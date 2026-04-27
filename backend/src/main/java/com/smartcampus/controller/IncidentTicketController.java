@@ -44,6 +44,7 @@ import java.util.List;
 )
 public class IncidentTicketController {
 
+    // Service handles ticket business logic; repository lookup here is mainly for current-user/technician data.
     private final IncidentTicketService incidentTicketService;
     private final UserRepository userRepository;
 
@@ -55,6 +56,7 @@ public class IncidentTicketController {
         this.userRepository = userRepository;
     }
 
+    // Returns all tickets, with optional filters from query params such as status, priority, and category.
     @GetMapping
     public ResponseEntity<List<IncidentTicket>> list(
             @RequestParam(required = false) String status,
@@ -64,6 +66,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(incidentTicketService.findAllFiltered(status, priority, category));
     }
 
+    // Builds the assignment dropdown for admins by returning active technician users only.
     @GetMapping("/technicians")
     public ResponseEntity<List<TechnicianOptionResponse>> listTechnicians() {
         List<TechnicianOptionResponse> technicians = userRepository.findAll()
@@ -85,7 +88,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(technicians);
     }
 
-    // Create incident ticket with optional resource linking (receives resourceId from frontend form)
+    // Creates a new ticket from multipart form-data and optionally stores up to 3 image attachments.
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<IncidentTicket> create(
             @RequestParam(value = "resourceId", required = false) String resourceId,
@@ -116,6 +119,7 @@ public class IncidentTicketController {
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
+    // Serves a stored attachment file back to the browser using the saved ticket id + filename.
     @GetMapping("/{ticketId}/attachments/{filename:.+}")
     public ResponseEntity<Resource> getAttachment(
             @PathVariable("ticketId") String ticketId,
@@ -139,6 +143,7 @@ public class IncidentTicketController {
         }
     }
 
+    // Partial update for workflow status such as OPEN -> IN_PROGRESS -> RESOLVED.
     @PatchMapping(path = "/{ticketId}/status", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<IncidentTicket> updateStatus(
             @PathVariable("ticketId") String ticketId,
@@ -152,6 +157,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(updated);
     }
 
+    // Partial update for assigning or clearing the technician/staff member on a ticket.
     @PatchMapping(path = "/{ticketId}/assignment", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<IncidentTicket> updateAssignment(
             @PathVariable("ticketId") String ticketId,
@@ -164,6 +170,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(updated);
     }
 
+    // Adds a new comment using the currently authenticated user as the comment owner.
     @PostMapping(path = "/{ticketId}/comments", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<IncidentTicket> addComment(
             @PathVariable("ticketId") String ticketId,
@@ -181,6 +188,7 @@ public class IncidentTicketController {
         return new ResponseEntity<>(updated, HttpStatus.CREATED);
     }
 
+    // Allows a comment owner to edit only the text body of an existing comment.
     @PatchMapping(path = "/{ticketId}/comments/{commentId}/body", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<IncidentTicket> updateComment(
             @PathVariable("ticketId") String ticketId,
@@ -198,6 +206,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(updated);
     }
 
+    // Staff-only moderation endpoint to hide or unhide a comment without deleting it.
     @PatchMapping(path = "/{ticketId}/comments/{commentId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<IncidentTicket> setCommentHidden(
             @PathVariable("ticketId") String ticketId,
@@ -211,6 +220,7 @@ public class IncidentTicketController {
         return ResponseEntity.ok(updated);
     }
 
+    // Deletes a comment, but only if the logged-in user is the original owner.
     @DeleteMapping("/{ticketId}/comments/{commentId}")
     public ResponseEntity<IncidentTicket> deleteComment(
             @PathVariable("ticketId") String ticketId,
@@ -222,12 +232,14 @@ public class IncidentTicketController {
         return ResponseEntity.ok(updated);
     }
 
+    // Deletes the ticket record and its upload folder.
     @DeleteMapping("/{ticketId}")
     public ResponseEntity<Void> delete(@PathVariable("ticketId") String ticketId) {
         incidentTicketService.deleteById(ticketId);
         return ResponseEntity.noContent().build();
     }
 
+    // Creates a friendly display label such as "John Doe (john@campus.com)" for assignment UI.
     private static String technicianLabel(User user) {
         String name = blankToNull(user.getName());
         String email = blankToNull(user.getEmail());
@@ -244,6 +256,7 @@ public class IncidentTicketController {
         return user.getId();
     }
 
+    // Normalizes blank strings into null so validation logic is simpler downstream.
     private static String blankToNull(String value) {
         if (value == null) {
             return null;
@@ -252,6 +265,7 @@ public class IncidentTicketController {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    // Resolves the logged-in application user from the Spring Security authentication object.
     private User requireCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
@@ -266,6 +280,7 @@ public class IncidentTicketController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current user was not found"));
     }
 
+    // Restricts certain actions, such as comment moderation, to staff roles only.
     private void requireStaffUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required");
@@ -285,6 +300,7 @@ public class IncidentTicketController {
         }
     }
 
+    // Extracts the email from the authenticated principal, including OAuth2 logins.
     private static String resolveCurrentUserEmail(Authentication authentication) {
         Object principal = authentication.getPrincipal();
         if (principal instanceof OAuth2User oAuth2User) {
@@ -293,6 +309,7 @@ public class IncidentTicketController {
         return blankToNull(authentication.getName());
     }
 
+    // Chooses the best human-readable author name to store with a comment.
     private static String commentAuthorLabel(User user) {
         String name = blankToNull(user.getName());
         String email = blankToNull(user.getEmail());
