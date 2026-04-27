@@ -1,8 +1,26 @@
-import { Outlet } from 'react-router-dom'
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-/**
- * Wrap routes that require authentication. Replace with real auth (e.g. OAuth) checks later.
- */
-export default function ProtectedRoute() {
-  return <Outlet />
-}
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { loading, isAuthenticated, hasAnyRole } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm font-semibold text-slate-600">Checking access...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!hasAnyRole(allowedRoles)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return children;
+};
+
+export default ProtectedRoute;

@@ -1,4 +1,4 @@
-import './TicketWorkflowBar.css'
+import { AlertCircle, CheckCircle2, ChevronRight, Circle, CircleDot } from 'lucide-react'
 
 const MAIN_STEPS = [
   { key: 'OPEN', label: 'Open' },
@@ -7,24 +7,35 @@ const MAIN_STEPS = [
   { key: 'CLOSED', label: 'Closed' },
 ]
 
-/**
- * Visualises OPEN → IN_PROGRESS → RESOLVED → CLOSED, or REJECTED (admin) with optional reason.
- */
-export default function TicketWorkflowBar({ status, rejectReason }) {
+export default function TicketWorkflowBar({ status, rejectReason, compact = false }) {
   if (status === 'REJECTED') {
     return (
-      <div className="ticket-workflow ticket-workflow--rejected" aria-label="Ticket status">
-        <div className="ticket-workflow-rejected">
-          <span className="ticket-workflow-badge ticket-workflow-badge--rejected">Rejected</span>
-          {rejectReason ? (
-            <p className="ticket-workflow-reason">
-              <strong>Reason:</strong> {rejectReason}
-            </p>
-          ) : (
-            <p className="ticket-workflow-reason ticket-workflow-reason--muted">
-              Admin rejection reason will appear here when set.
-            </p>
-          )}
+      <div className="mt-0" aria-label="Ticket status">
+        <div
+          className={
+            compact
+              ? 'inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700'
+              : 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3'
+          }
+        >
+          <span
+            className={`inline-flex items-center gap-1 font-semibold ${
+              compact ? 'text-xs text-red-700' : 'rounded-full bg-red-100 px-3 py-1 text-sm text-red-800'
+            }`}
+          >
+            <AlertCircle className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.2} />
+            Rejected
+          </span>
+          {!compact &&
+            (rejectReason ? (
+              <p className="mt-2 text-sm font-semibold leading-relaxed text-red-900">
+                <strong>Reason:</strong> {rejectReason}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm italic leading-relaxed text-gray-600">
+                Admin rejection reason will appear here when set.
+              </p>
+            ))}
         </div>
       </div>
     )
@@ -34,16 +45,52 @@ export default function TicketWorkflowBar({ status, rejectReason }) {
   const activeIndex = idx >= 0 ? idx : 0
 
   return (
-    <div className="ticket-workflow" aria-label="Ticket workflow">
-      <ol className="ticket-workflow-steps">
+    <div className="mt-0" aria-label="Ticket workflow">
+      <ol className="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0">
         {MAIN_STEPS.map((step, i) => {
-          let state = 'upcoming'
-          if (i < activeIndex) state = 'done'
-          if (i === activeIndex) state = 'current'
+          const isDone = i < activeIndex
+          const isCurrent = i === activeIndex
           return (
-            <li key={step.key} className={`ticket-workflow-step ticket-workflow-step--${state}`}>
-              <span className="ticket-workflow-dot" aria-hidden />
-              <span className="ticket-workflow-label">{step.label}</span>
+            <li
+              key={step.key}
+              className={`flex items-center ${compact ? 'gap-1.5 text-xs sm:text-sm' : 'gap-2 text-sm sm:text-base'}`}
+            >
+              {isCurrent ? (
+                <CircleDot
+                  aria-hidden
+                  className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'} shrink-0 text-slate-900`}
+                  strokeWidth={2.2}
+                />
+              ) : isDone ? (
+                <CheckCircle2
+                  aria-hidden
+                  className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'} shrink-0 text-emerald-600`}
+                  strokeWidth={2.2}
+                />
+              ) : (
+                <Circle
+                  aria-hidden
+                  className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'} shrink-0 text-gray-300`}
+                  strokeWidth={2}
+                />
+              )}
+              <span
+                className={`${
+                  isCurrent
+                    ? 'font-semibold text-slate-900'
+                    : isDone
+                      ? 'font-medium text-emerald-700'
+                      : 'text-gray-400'
+                }`}
+              >
+                {step.label}
+              </span>
+              {i < MAIN_STEPS.length - 1 && (
+                <ChevronRight
+                  className={`${compact ? 'mx-0.5 h-3 w-3' : 'mx-1 h-3.5 w-3.5 sm:h-4 sm:w-4'} text-gray-300`}
+                  strokeWidth={2.2}
+                />
+              )}
             </li>
           )
         })}

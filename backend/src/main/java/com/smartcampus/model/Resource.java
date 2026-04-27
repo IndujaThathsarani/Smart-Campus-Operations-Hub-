@@ -1,56 +1,23 @@
 package com.smartcampus.model;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "resources")
 public class Resource {
-
     @Id
     private String id;
-
-    @NotBlank(message = "Resource name is required")
     private String name;
-
-    @NotNull(message = "Resource type is required")
     private ResourceType type;
-
-    @NotNull(message = "Capacity is required")
-    @Min(value = 1, message = "Capacity must be at least 1")
     private Integer capacity;
-
-    @NotBlank(message = "Location is required")
     private String location;
-
-    @NotBlank(message = "Availability start is required")
+    private String availabilityStartDate;
+    private String availabilityEndDate;
     private String availabilityStart;
-
-    @NotBlank(message = "Availability end is required")
     private String availabilityEnd;
-
-    @NotNull(message = "Status is required")
-    private ResourceStatus status;
-
+    private String status;
     private String description;
-
-    public Resource() {
-    }
-
-    public Resource(String id, String name, ResourceType type, Integer capacity, String location,
-                    String availabilityStart, String availabilityEnd, ResourceStatus status, String description) {
-        this.id = id;
-        this.name = name;
-        this.type = type;
-        this.capacity = capacity;
-        this.location = location;
-        this.availabilityStart = availabilityStart;
-        this.availabilityEnd = availabilityEnd;
-        this.status = status;
-        this.description = description;
-    }
+    private String equipmentImage;
 
     public String getId() {
         return id;
@@ -96,8 +63,24 @@ public class Resource {
         return availabilityStart;
     }
 
+    public String getAvailabilityStartDate() {
+        return availabilityStartDate;
+    }
+
+    public String getAvailabilityEndDate() {
+        return availabilityEndDate;
+    }
+
     public void setAvailabilityStart(String availabilityStart) {
         this.availabilityStart = availabilityStart;
+    }
+
+    public void setAvailabilityStartDate(String availabilityStartDate) {
+        this.availabilityStartDate = availabilityStartDate;
+    }
+
+    public void setAvailabilityEndDate(String availabilityEndDate) {
+        this.availabilityEndDate = availabilityEndDate;
     }
 
     public String getAvailabilityEnd() {
@@ -108,11 +91,11 @@ public class Resource {
         this.availabilityEnd = availabilityEnd;
     }
 
-    public ResourceStatus getStatus() {
+    public String getStatus() {
         return status;
     }
 
-    public void setStatus(ResourceStatus status) {
+    public void setStatus(String status) {
         this.status = status;
     }
 
@@ -122,5 +105,13 @@ public class Resource {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getEquipmentImage() {
+        return equipmentImage;
+    }
+
+    public void setEquipmentImage(String equipmentImage) {
+        this.equipmentImage = equipmentImage;
     }
 }
