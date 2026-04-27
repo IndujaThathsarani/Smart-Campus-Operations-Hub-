@@ -2,9 +2,11 @@ export const MAX_ATTACHMENTS = 3
 export const MAX_SUBJECT_LENGTH = 160
 export const MAX_DESCRIPTION_LENGTH = 4000
 
+// Simple client-side format checks before the request reaches the backend.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_PATTERN = /^\+?[0-9()\-\s.]{7,20}$/
 
+// Returns a field-error object used by both ticket creation screens.
 export function validateTicketForm({
   subject,
   location,
@@ -57,6 +59,7 @@ export function validateTicketForm({
   return errors
 }
 
+// Filters selected files so only image attachments within the remaining slot count are accepted.
 export function inspectTicketAttachments(fileList, currentCount) {
   const files = Array.from(fileList || [])
   const remainingSlots = Math.max(0, MAX_ATTACHMENTS - Number(currentCount || 0))
