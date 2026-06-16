@@ -1,0 +1,88 @@
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import FloatingNotificationsBell from './FloatingNotificationsBell'
+
+const NAVBAR_LINKS = {
+  user: [
+    { to: '/', label: 'Home', end: true },
+    { to: '/resources', label: 'Resources' },
+    { to: '/tickets', label: 'Tickets' },
+    { to: '/bookings', label: 'Bookings' },
+  ],
+  technician: [
+    { to: '/', label: 'Home', end: true },
+    { to: '/resources', label: 'Resources' },
+    { to: '/technician/tickets', label: 'Tickets' },
+  ],
+  admin: [
+    { to: '/admin/catalogue', label: 'Admin Catalogue' },
+    { to: '/admin/tickets', label: 'Admin Tickets' },
+    { to: '/bookings', label: 'Bookings' },
+  ],
+  systemAdmin: [
+    { to: '/system-admin/dashboard', label: 'System Admin' },
+    { to: '/admin/catalogue', label: 'Admin Catalogue' },
+    { to: '/admin/tickets', label: 'Admin Tickets' },
+    { to: '/bookings', label: 'Bookings' },
+    { to: '/system-admin/custom-notification', label: 'Custom Notification' },
+  ],
+}
+
+const linkClass = ({ isActive }) =>
+  [
+    'rounded-md px-3 py-1.5 text-sm font-medium transition duration-200',
+    isActive
+      ? 'bg-white/12 text-white shadow-sm ring-1 ring-white/10'
+      : 'text-slate-300 hover:bg-white/8 hover:text-white',
+  ].join(' ')
+
+export default function RoleNavbar({ variant = 'user' }) {
+  const { isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
+  const links = NAVBAR_LINKS[variant] || NAVBAR_LINKS.user
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
+
+  return (
+    <header className="border-b border-white/10 bg-slate-950 text-slate-100 shadow-[0_1px_0_rgba(255,255,255,0.06)]">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <Link
+          to="/"
+          className="shrink-0 text-lg font-semibold tracking-[0.02em] text-white transition hover:text-slate-200"
+        >
+          <span>SmartCampus</span>
+          <span className="text-sky-400">Hub</span>
+        </Link>
+
+        <nav className="flex min-w-0 flex-1 flex-wrap justify-center gap-1" aria-label="Primary">
+          {isAuthenticated &&
+            links.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={linkClass}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+        </nav>
+
+        {isAuthenticated && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="shrink-0 rounded-md bg-red-500/15 px-3 py-1.5 text-sm font-medium text-red-200 transition hover:bg-red-500/25 hover:text-white"
+          >
+            LOGOUT
+          </button>
+        )}
+      </div>
+
+      {isAuthenticated && variant !== 'systemAdmin' && <FloatingNotificationsBell />}
+    </header>
+  )
+}

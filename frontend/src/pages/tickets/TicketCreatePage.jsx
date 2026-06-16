@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, FileImage, FileText, Send, TicketPlus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES } from '../../constants/ticketOptions'
-// import { useResources } from '../../hooks/useResources'
+import { useResources } from '../../hooks/useResources'
 import { apiPostFormData } from '../../services/apiClient'
-import { upsertStoredTicket } from '../../utils/ticketStorage'
-import './TicketsPage.css'
-
-const MAX_ATTACHMENTS = 3
+import {
+  inspectTicketAttachments,
+  MAX_ATTACHMENTS,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_SUBJECT_LENGTH,
+  validateTicketForm,
+} from './ticketFormValidation'
 
 function formatSubmitError(err) {
   const msg = err?.body?.message
@@ -19,10 +23,10 @@ function formatSubmitError(err) {
 
 export default function TicketCreatePage() {
   const navigate = useNavigate()
-  // const { resources, loading: resourcesLoading, loadError: resourcesLoadError } = useResources()
 
-  // const [resourceId, setResourceId] = useState('')
+  const [subject, setSubject] = useState('')
   const [location, setLocation] = useState('')
+  const [resourceId, setResourceId] = useState('')
   const [category, setCategory] = useState('GENERAL')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('MEDIUM')
@@ -31,10 +35,14 @@ export default function TicketCreatePage() {
 
   const [submitPhase, setSubmitPhase] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
+  const [validationErrors, setValidationErrors] = useState({})
+  const [attachmentNotice, setAttachmentNotice] = useState('')
 
-  /** @type {[{ file: File, url: string }]} */
+  // Fetch resources for optional linking in incident tickets (populates resource dropdown)
+  // Array to store attached photo files and their preview URLs
   const [attachments, setAttachments] = useState([])
   const attachmentsRef = useRef(attachments)
+  const { resources, loading: resourcesLoading, loadError: resourcesError } = useResources()
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -46,20 +54,24 @@ export default function TicketCreatePage() {
     }
   }, [])
 
+  // Function to add selected image files to the attachments array (up to MAX_ATTACHMENTS)
   function addFiles(fileList) {
-    const incoming = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'))
-    if (incoming.length === 0) return
+    const { acceptedFiles, message } = inspectTicketAttachments(fileList, attachmentsRef.current.length)
+    setAttachmentNotice(message)
+    if (acceptedFiles.length === 0) return
 
     setAttachments((prev) => {
       const next = [...prev]
-      for (const file of incoming) {
+      for (const file of acceptedFiles) {
         if (next.length >= MAX_ATTACHMENTS) break
         next.push({ file, url: URL.createObjectURL(file) })
       }
       return next
     })
+    setValidationErrors((prev) => ({ ...prev, attachments: undefined }))
   }
 
+  // Function to remove a specific attachment by index and clean up its preview URL
   function removeAttachment(index) {
     setAttachments((prev) => {
       const copy = [...prev]
@@ -67,8 +79,10 @@ export default function TicketCreatePage() {
       if (removed) URL.revokeObjectURL(removed.url)
       return copy
     })
+    setAttachmentNotice('')
   }
 
+  // Handler for file input change: adds selected files and resets input for re-selection
   function handleFileChange(e) {
     addFiles(e.target.files)
     e.target.value = ''
@@ -76,12 +90,16 @@ export default function TicketCreatePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    // const hasResource = Boolean(resourceId)
-    const hasLocation = location.trim().length > 0
-    const hasContact =
-      contactEmail.trim().length > 0 || contactPhone.trim().length > 0
-
-    if (!hasLocation || !hasContact || description.trim().length < 10) {
+    const errors = validateTicketForm({
+      subject,
+      location,
+      description,
+      contactEmail,
+      contactPhone,
+      attachments,
+    })
+    setValidationErrors(errors)
+    if (Object.keys(errors).length > 0) {
       return
     }
 
@@ -89,10 +107,10 @@ export default function TicketCreatePage() {
     setSubmitError(null)
 
     const formData = new FormData()
-    // if (resourceId) {
-    //   formData.append('resourceId', resourceId)
-    // }
+    formData.append('subject', subject.trim())
     formData.append('location', location.trim())
+    // Append selected resource ID if chosen (links ticket to resource in backend)
+    if (resourceId) formData.append('resourceId', resourceId)
     formData.append('category', category)
     formData.append('priority', priority)
     formData.append('description', description.trim())
@@ -101,19 +119,20 @@ export default function TicketCreatePage() {
     if (email) formData.append('contactEmail', email)
     if (phone) formData.append('contactPhone', phone)
 
+    // Append all attached photo files to the form data for upload
     attachments.forEach((a) => {
       formData.append('files', a.file)
     })
 
     try {
-      const data = await apiPostFormData('/api/tickets', formData)
-      upsertStoredTicket(data)
+      await apiPostFormData('/api/tickets', formData)
       setSubmitPhase('idle')
 
       attachments.forEach((a) => URL.revokeObjectURL(a.url))
       setAttachments([])
-      // setResourceId('')
+      setSubject('')
       setLocation('')
+      setResourceId('')
       setCategory('GENERAL')
       setDescription('')
       setPriority('MEDIUM')
@@ -127,153 +146,211 @@ export default function TicketCreatePage() {
     }
   }
 
-  // When resource field is restored: (Boolean(resourceId) || location.trim().length > 0) && …
   const canSubmit =
-    location.trim().length > 0 &&
-    (contactEmail.trim().length > 0 || contactPhone.trim().length > 0) &&
-    description.trim().length >= 10
+    Object.keys(
+      validateTicketForm({
+        subject,
+        location,
+        description,
+        contactEmail,
+        contactPhone,
+        attachments,
+      }),
+    ).length === 0
 
   const submitting = submitPhase === 'loading'
 
   return (
-    <section className="tickets-page">
-      <div className="ticket-create-nav">
-        <Link to="/tickets" className="ticket-back-link">
-          ← Back to tickets
+    <section className="mx-auto flex h-full w-full max-w-xl min-h-0 flex-col">
+      <div className="mb-2">
+        <Link to="/tickets" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-slate-900 hover:underline">
+          <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
+          Back to tickets
         </Link>
       </div>
 
-      <h1 className="page-title">New incident ticket</h1>
-
-      {/* {resourcesLoadError && (
-        <p className="form-banner form-banner--warn" role="status">
-          {resourcesLoadError}
-        </p>
-      )} */}
+      <h1 className="mb-1.5 inline-flex items-center gap-2 text-xl font-semibold text-slate-900">
+        <TicketPlus className="h-5 w-5 text-sky-700" strokeWidth={2.2} />
+        New incident ticket
+      </h1>
 
       {submitPhase === 'error' && submitError && (
-        <p className="form-banner form-banner--err" role="alert">
+        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-800" role="alert">
           {submitError}
         </p>
       )}
 
-      <form className="ticket-form" onSubmit={handleSubmit} noValidate>
-        <h2 className="ticket-form-heading">Report details</h2>
-        <div className="form-stack">
-          {/* Resource (catalogue) — restore when catalogue API is ready:
-          <div className="form-field">
-            <label htmlFor="resource">Resource (from catalogue)</label>
+      <form
+        className="min-h-0 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+        onSubmit={handleSubmit}
+        noValidate
+      >
+        <h2 className="mb-3 inline-flex items-center gap-2 text-base font-semibold text-gray-900">
+          <FileText className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+          Report details
+        </h2>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="subject" className="text-sm font-medium text-gray-700">Subject</label>
+            <input
+              id="subject"
+              type="text"
+              autoComplete="off"
+              placeholder="Brief summary of the issue"
+              value={subject}
+              onChange={(e) => {
+                setSubject(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, subject: undefined }))
+              }}
+              maxLength={MAX_SUBJECT_LENGTH}
+              disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="m-0 text-xs text-gray-500">{subject.trim().length} / {MAX_SUBJECT_LENGTH}</p>
+              {validationErrors.subject && <p className="m-0 text-xs text-red-700">{validationErrors.subject}</p>}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="resourceId" className="text-sm font-medium text-gray-700">Resource (optional)</label>
             <select
-              id="resource"
+              id="resourceId"
               value={resourceId}
               onChange={(e) => setResourceId(e.target.value)}
               disabled={submitting || resourcesLoading}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             >
-              <option value="">— None —</option>
+              <option value="">Not linked to a specific resource</option>
               {resources.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name} — {r.location}
+                  {r.name || 'Unnamed resource'} ({r.type || 'OTHER'})
                 </option>
               ))}
             </select>
-            <p className="hint">Optional if you describe the location below.</p>
+            {resourcesError && <p className="m-0 text-xs text-amber-700">{resourcesError}</p>}
           </div>
-          */}
 
-          <div className="form-field">
-            <label htmlFor="location">Location</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="location" className="text-sm font-medium text-gray-700">Location</label>
             <input
               id="location"
               type="text"
               autoComplete="off"
               placeholder="e.g. Block C, Level 2, corridor by stairs"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={(e) => {
+                setLocation(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, location: undefined }))
+              }}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
-            <p className="hint">Where the incident happened (building, room, area).</p>
+            <p className="m-0 text-xs text-gray-500">Where the incident happened (building, room, area).</p>
+            {validationErrors.location && <p className="m-0 text-xs text-red-700">{validationErrors.location}</p>}
           </div>
 
-          <div className="form-field">
-            <label htmlFor="category">Category</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="category" className="text-sm font-medium text-gray-700">Category</label>
             <select
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               {TICKET_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
+                <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="priority">Priority</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="priority" className="text-sm font-medium text-gray-700">Priority</label>
             <select
               id="priority"
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               {TICKET_PRIORITIES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
+                <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </select>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="description">Description</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="description" className="text-sm font-medium text-gray-700">Description</label>
             <textarea
               id="description"
               required
               minLength={10}
-              maxLength={4000}
+              maxLength={MAX_DESCRIPTION_LENGTH}
               placeholder="Describe the issue (minimum 10 characters)."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, description: undefined }))
+              }}
               disabled={submitting}
+              className="min-h-28 resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
+            <div className="flex items-center justify-between gap-3">
+              <p className="m-0 text-xs text-gray-500">{description.trim().length} / {MAX_DESCRIPTION_LENGTH}</p>
+              {validationErrors.description && <p className="m-0 text-xs text-red-700">{validationErrors.description}</p>}
+            </div>
           </div>
 
-          <div className="form-field">
-            <label htmlFor="email">Preferred contact email</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">Preferred contact email</label>
             <input
               id="email"
               type="email"
               autoComplete="email"
               placeholder="you@university.edu"
               value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
+              onChange={(e) => {
+                setContactEmail(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, contactEmail: undefined, contact: undefined }))
+              }}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
+            {validationErrors.contactEmail && <p className="m-0 text-xs text-red-700">{validationErrors.contactEmail}</p>}
           </div>
 
-          <div className="form-field">
-            <label htmlFor="phone">Preferred contact phone</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="phone" className="text-sm font-medium text-gray-700">Preferred contact phone</label>
             <input
               id="phone"
               type="tel"
               autoComplete="tel"
               placeholder="+94 …"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => {
+                setContactPhone(e.target.value)
+                setValidationErrors((prev) => ({ ...prev, contactPhone: undefined, contact: undefined }))
+              }}
               disabled={submitting}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-gray-100"
             />
-            <p className="hint">Provide at least email or phone.</p>
+            <p className="m-0 text-xs text-gray-500">Provide at least email or phone.</p>
+            {validationErrors.contactPhone && <p className="m-0 text-xs text-red-700">{validationErrors.contactPhone}</p>}
+            {validationErrors.contact && <p className="m-0 text-xs text-red-700">{validationErrors.contact}</p>}
           </div>
 
-          <div className="attachments-section">
-            <label htmlFor="evidence">Evidence images</label>
-            <p className="hint">
-              Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not
-              required — use the file picker.
+          <div className="rounded-md border border-dashed border-slate-300 bg-gray-50 px-3 py-2.5">
+            <label htmlFor="evidence" className="mb-1 inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <FileImage className="h-4 w-4 text-slate-500" strokeWidth={2.2} />
+              Evidence images
+            </label>
+            <p className="mb-3 text-xs text-gray-500">
+              Up to {MAX_ATTACHMENTS} images (e.g. damage, error screen). Drag-and-drop is not required — use the file picker.
             </p>
-            <div className="file-input-wrap">
+            <div>
+              {/* File input for selecting photo attachments */}
               <input
                 id="evidence"
                 type="file"
@@ -281,19 +358,22 @@ export default function TicketCreatePage() {
                 multiple
                 disabled={submitting || attachments.length >= MAX_ATTACHMENTS}
                 onChange={handleFileChange}
+                className="max-w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-sm file:text-white hover:file:bg-slate-800 disabled:cursor-not-allowed"
               />
             </div>
-            <p className="attachment-count">
-              {attachments.length} / {MAX_ATTACHMENTS} attached
-            </p>
+            <p className="mt-2 text-xs text-slate-500">{attachments.length} / {MAX_ATTACHMENTS} attached</p>
+            {attachmentNotice && <p className="mt-1 text-xs text-amber-700">{attachmentNotice}</p>}
+            {validationErrors.attachments && <p className="mt-1 text-xs text-red-700">{validationErrors.attachments}</p>}
+
+            {/* Grid to display previews of attached photos with remove buttons */}
             {attachments.length > 0 && (
-              <div className="preview-grid">
+              <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2.5">
                 {attachments.map((a, index) => (
-                  <div key={a.url} className="preview-item">
-                    <img src={a.url} alt={a.file.name} />
+                  <div key={a.url} className="relative aspect-square overflow-hidden rounded-md border border-gray-200 bg-gray-200">
+                    <img src={a.url} alt={a.file.name} className="block h-full w-full object-cover" />
                     <button
                       type="button"
-                      className="preview-remove"
+                      className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-base leading-none text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                       aria-label={`Remove image ${index + 1}`}
                       onClick={() => removeAttachment(index)}
                       disabled={submitting}
@@ -306,8 +386,13 @@ export default function TicketCreatePage() {
             )}
           </div>
 
-          <div className="form-actions">
-            <button type="submit" className="btn-submit" disabled={!canSubmit || submitting}>
+          <div className="mt-1 border-t border-gray-200 pt-3">
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={!canSubmit || submitting}
+            >
+              <Send className="h-4 w-4" strokeWidth={2.2} />
               {submitting ? 'Submitting…' : 'Submit ticket'}
             </button>
           </div>
@@ -316,3 +401,5 @@ export default function TicketCreatePage() {
     </section>
   )
 }
+
+
